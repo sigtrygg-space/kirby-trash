@@ -1,0 +1,46 @@
+{
+    "name": "sigtrygg-space/kirby-trash",
+    "description": "A proper trash bin for Kirby CMS: soft-delete pages and files instead of removing them instantly.",
+    "type": "kirby-plugin",
+    "license": "MIT",
+    "keywords": [
+        "kirby",
+        "kirby-cms",
+        "kirby-plugin",
+        "trash",
+        "recycle-bin",
+        "soft-delete"
+    ],
+    "homepage": "https://github.com/sigtrygg-space/kirby-trash",
+    "authors": [
+        {
+            "name": "sigtrygg-space"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "getkirby/composer-installer": "^1.2"
+    },
+    "require-dev": {
+        "getkirby/cms": "^5.0",
+        "phpunit/phpunit": "^10.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "SigtryggSpace\\KirbyTrash\\": "src/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "extra": {
+        "kirby-cms-path": false,
+        "installer-name": "kirby-trash"
+    },
+    "config": {
+        "allow-plugins": {
+            "getkirby/composer-installer": true
+        },
+        "optimize-autoloader": true
+    }
+}

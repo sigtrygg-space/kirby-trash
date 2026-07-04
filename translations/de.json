@@ -1,0 +1,18 @@
+{
+    "sigtrygg-space.kirby-trash.title": "Papierkorb",
+    "sigtrygg-space.kirby-trash.empty": "Der Papierkorb ist leer",
+    "sigtrygg-space.kirby-trash.restore": "Wiederherstellen",
+    "sigtrygg-space.kirby-trash.delete": "Endgültig löschen",
+    "sigtrygg-space.kirby-trash.emptyTrash": "Papierkorb leeren",
+    "sigtrygg-space.kirby-trash.dialog.restore": "Möchtest du \"{title}\" wirklich wiederherstellen?",
+    "sigtrygg-space.kirby-trash.dialog.delete": "Möchtest du \"{title}\" wirklich endgültig löschen? Dies kann nicht rückgängig gemacht werden.",
+    "sigtrygg-space.kirby-trash.dialog.empty": "Möchtest du wirklich alle {count} Einträge ({size}) im Papierkorb endgültig löschen? Dies kann nicht rückgängig gemacht werden.",
+    "sigtrygg-space.kirby-trash.notification.restored": "Wiederhergestellt",
+    "sigtrygg-space.kirby-trash.notification.deleted": "Endgültig gelöscht",
+    "sigtrygg-space.kirby-trash.notification.emptied": "Der Papierkorb wurde geleert",
+    "sigtrygg-space.kirby-trash.info.remaining": "Noch {days} Tag(e)",
+    "sigtrygg-space.kirby-trash.error.notFound": "Der Papierkorb-Eintrag wurde nicht gefunden",
+    "sigtrygg-space.kirby-trash.error.missingParent": "Die ursprüngliche Elternseite \"{parent}\" existiert nicht mehr",
+    "sigtrygg-space.kirby-trash.error.exists": "Das Wiederherstellungsziel existiert bereits",
+    "sigtrygg-space.kirby-trash.error.permission": "Dazu hast du keine Berechtigung"
+}

@@ -1,0 +1,18 @@
+{
+    "sigtrygg-space.kirby-trash.title": "Trash",
+    "sigtrygg-space.kirby-trash.empty": "The trash is empty",
+    "sigtrygg-space.kirby-trash.restore": "Restore",
+    "sigtrygg-space.kirby-trash.delete": "Delete permanently",
+    "sigtrygg-space.kirby-trash.emptyTrash": "Empty trash",
+    "sigtrygg-space.kirby-trash.dialog.restore": "Do you really want to restore \"{title}\"?",
+    "sigtrygg-space.kirby-trash.dialog.delete": "Do you really want to permanently delete \"{title}\"? This cannot be undone.",
+    "sigtrygg-space.kirby-trash.dialog.empty": "Do you really want to permanently delete all {count} item(s) ({size}) in the trash? This cannot be undone.",
+    "sigtrygg-space.kirby-trash.notification.restored": "Restored",
+    "sigtrygg-space.kirby-trash.notification.deleted": "Deleted permanently",
+    "sigtrygg-space.kirby-trash.notification.emptied": "The trash has been emptied",
+    "sigtrygg-space.kirby-trash.info.remaining": "{days} day(s) left",
+    "sigtrygg-space.kirby-trash.error.notFound": "The trash item could not be found",
+    "sigtrygg-space.kirby-trash.error.missingParent": "The original parent page \"{parent}\" does not exist anymore",
+    "sigtrygg-space.kirby-trash.error.exists": "The restore target already exists",
+    "sigtrygg-space.kirby-trash.error.permission": "You are not allowed to do this"
+}
