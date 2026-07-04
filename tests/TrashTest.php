@@ -223,6 +223,32 @@ final class TrashTest extends TestCase
 		$this->assertSame('Deutscher Alt-Text', $restored->content('de')->get('alt')->value());
 	}
 
+	public function testRestoreFileWithCustomContentExtension(): void
+	{
+		$this->kirby = $this->app([
+			'content' => ['extension' => 'md'],
+		]);
+
+		$page = $this->createPage('gallery');
+		$file = $this->createFile($page, 'test.jpg', ['alt' => 'Alt text stays']);
+
+		$this->assertFileExists($page->root() . '/test.jpg.md');
+
+		$file->delete();
+
+		$items = $this->trash()->items();
+		$this->assertCount(1, $items);
+
+		$dataRoot = $this->trash()->root() . '/' . $items[0]['trashId'] . '/data';
+		$this->assertFileExists($dataRoot . '/test.jpg.md');
+
+		$this->trash()->restore($items[0]['trashId']);
+
+		$restored = $this->fresh()->page('gallery')->file('test.jpg');
+		$this->assertNotNull($restored);
+		$this->assertSame('Alt text stays', $restored->alt()->value());
+	}
+
 	public function testRestoreFailsWhenParentIsGone(): void
 	{
 		$parent = $this->createPage('parent');
