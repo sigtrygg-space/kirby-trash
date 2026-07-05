@@ -11,8 +11,8 @@
     "sigtrygg-space.kirby-trash.notification.deleted": "Deleted permanently",
     "sigtrygg-space.kirby-trash.notification.emptied": "The trash has been emptied",
     "sigtrygg-space.kirby-trash.info.remaining": "{days} day(s) left",
-    "sigtrygg-space.kirby-trash.error.notFound": "The trash item could not be found",
-    "sigtrygg-space.kirby-trash.error.missingParent": "The original parent page \"{parent}\" does not exist anymore",
-    "sigtrygg-space.kirby-trash.error.exists": "The restore target already exists",
-    "sigtrygg-space.kirby-trash.error.permission": "You are not allowed to do this"
+    "error.sigtrygg-space.kirby-trash.notFound": "The trash item could not be found",
+    "error.sigtrygg-space.kirby-trash.missingParent": "The original parent page \"{parent}\" does not exist anymore",
+    "error.sigtrygg-space.kirby-trash.exists": "The restore target already exists",
+    "error.sigtrygg-space.kirby-trash.permission": "You are not allowed to do this"
 }

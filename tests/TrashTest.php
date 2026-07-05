@@ -42,13 +42,14 @@ final class TrashTest extends TestCase
 
 		$kirby = new App([
 			'roots' => [
-				'index'    => $this->tmp,
-				'content'  => $this->tmp . '/content',
-				'site'     => $this->tmp . '/site',
-				'media'    => $this->tmp . '/media',
-				'accounts' => $this->tmp . '/accounts',
-				'sessions' => $this->tmp . '/sessions',
-				'cache'    => $this->tmp . '/cache',
+				'index'      => $this->tmp,
+				'content'    => $this->tmp . '/content',
+				'site'       => $this->tmp . '/site',
+				'blueprints' => $this->tmp . '/site/blueprints',
+				'media'      => $this->tmp . '/media',
+				'accounts'   => $this->tmp . '/accounts',
+				'sessions'   => $this->tmp . '/sessions',
+				'cache'      => $this->tmp . '/cache',
 			],
 			'options' => $options,
 			...$props,
@@ -76,10 +77,11 @@ final class TrashTest extends TestCase
 		return $clone;
 	}
 
-	protected function createPage(string $slug, array $content = []): Page
+	protected function createPage(string $slug, array $content = [], Page|null $parent = null): Page
 	{
 		return Page::create([
 			'slug'     => $slug,
+			'parent'   => $parent,
 			'template' => 'default',
 			'content'  => ['title' => ucfirst($slug), ...$content],
 		]);
@@ -145,12 +147,7 @@ final class TrashTest extends TestCase
 	{
 		$parent = $this->createPage('parent');
 		$this->createFile($parent, 'test.jpg', ['alt' => 'An image']);
-		Page::create([
-			'slug'     => 'child',
-			'parent'   => $parent,
-			'template' => 'default',
-			'content'  => ['title' => 'Child'],
-		]);
+		$this->createPage('child', parent: $parent);
 
 		$parent = $this->fresh()->page('parent');
 		$parent->delete(true);
@@ -181,7 +178,7 @@ final class TrashTest extends TestCase
 		$items = $this->trash()->items();
 		$this->assertCount(1, $items);
 		$this->assertSame('file', $items[0]['type']);
-		$this->assertSame('test.jpg', $items[0]['filename']);
+		$this->assertSame('test.jpg', $items[0]['relativePath']);
 
 		$this->trash()->restore($items[0]['trashId']);
 
@@ -252,12 +249,7 @@ final class TrashTest extends TestCase
 	public function testRestoreFailsWhenParentIsGone(): void
 	{
 		$parent = $this->createPage('parent');
-		$child  = Page::create([
-			'slug'     => 'child',
-			'parent'   => $parent,
-			'template' => 'default',
-			'content'  => ['title' => 'Child'],
-		]);
+		$child  = $this->createPage('child', parent: $parent);
 
 		$child->delete();
 		$this->fresh()->page('parent')->delete(true);
@@ -371,6 +363,102 @@ final class TrashTest extends TestCase
 		$this->assertCount(0, $this->trash()->items());
 	}
 
+	public function testAdminWithCustomBlueprintKeepsAccess(): void
+	{
+		// a custom admin.yml without `permissions: true` resolves the
+		// registered plugin defaults (false); admins must stay allowed
+		F::write($this->tmp . '/site/blueprints/users/admin.yml', 'title: Administrator');
+
+		$this->kirby = $this->app(props: [
+			'users' => [
+				['email' => 'admin@example.com', 'role' => 'admin'],
+			],
+		]);
+		$this->kirby->impersonate('admin@example.com');
+
+		$this->assertTrue($this->trash()->can('access'));
+		$this->assertTrue($this->trash()->can('restore'));
+		$this->assertTrue($this->trash()->can('delete'));
+	}
+
+	public function testRestoreLegacyFileItemWithoutRelativePath(): void
+	{
+		$this->createPage('gallery');
+
+		// file item as written by pre-release versions:
+		// `filename` instead of `relativePath`, no `version`
+		$itemRoot = $this->trash()->root() . '/legacy-item';
+		F::write($itemRoot . '/data/test.jpg', 'binary');
+		F::write($itemRoot . '/data/test.jpg.txt', "Alt: legacy alt\n");
+		Data::write($itemRoot . '/meta.json', [
+			'type'      => 'file',
+			'id'        => 'gallery/test.jpg',
+			'title'     => 'test.jpg',
+			'filename'  => 'test.jpg',
+			'parent'    => 'gallery',
+			'size'      => 6,
+			'deletedAt' => '2026-07-01T12:00:00+00:00',
+		], 'json');
+		$this->trash()->flushIndex();
+
+		$this->assertSame('test.jpg', $this->trash()->item('legacy-item')['relativePath']);
+
+		$this->trash()->restore('legacy-item');
+
+		$restored = $this->fresh()->page('gallery')->file('test.jpg');
+		$this->assertNotNull($restored);
+		$this->assertSame('legacy alt', $restored->alt()->value());
+	}
+
+	public function testCompanionMatchingIgnoresSiblingFiles(): void
+	{
+		$page = $this->createPage('downloads');
+		$this->createFile($page, 'a.tar', ['alt' => 'tar alt']);
+		$this->createFile($page, 'a.tar.gz', ['alt' => 'gz alt']);
+
+		$this->fresh()->page('downloads')->file('a.tar')->delete();
+
+		$items    = $this->trash()->items();
+		$dataRoot = $this->trash()->root() . '/' . $items[0]['trashId'] . '/data';
+		$this->assertSame(['a.tar', 'a.tar.txt'], Dir::files($dataRoot));
+
+		// the sibling's content must survive a later update + restore
+		$this->fresh()->page('downloads')->file('a.tar.gz')->update(['alt' => 'gz alt updated']);
+		$this->trash()->restore($items[0]['trashId']);
+
+		$page = $this->fresh()->page('downloads');
+		$this->assertSame('tar alt', $page->file('a.tar')->alt()->value());
+		$this->assertSame('gz alt updated', $page->file('a.tar.gz')->alt()->value());
+	}
+
+	public function testParentUuidIsGeneratedForUuidLessParents(): void
+	{
+		$parent = $this->createPage('parent');
+		$this->createPage('child', parent: $parent);
+
+		// strip the stored uuid, as in content migrated from Kirby 3
+		$contentFile = $parent->root() . '/default.txt';
+		$content     = preg_replace('/^Uuid:[^\n]*\n?/mi', '', F::read($contentFile));
+		F::write($contentFile, $content);
+		$this->assertStringNotContainsStringIgnoringCase('uuid:', F::read($contentFile));
+
+		$this->fresh()->page('parent/child')->delete();
+
+		$item = $this->trash()->items()[0];
+		$this->assertNotNull($item['parentUuid']);
+		$this->assertStringStartsWith('page://', $item['parentUuid']);
+		$this->assertStringContainsString('Uuid:', F::read($contentFile));
+	}
+
+	public function testRetentionDaysNegativeFractionMeansForever(): void
+	{
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.retentionDays' => -0.5,
+		]);
+
+		$this->assertNull($this->trash()->retentionDays());
+	}
+
 	public function testInvalidIdsAreRejected(): void
 	{
 		$this->expectException(NotFoundException::class);
@@ -385,6 +473,7 @@ final class TrashTest extends TestCase
 				$meta = Data::read($file, 'json');
 				$meta['deletedAt'] = date('c', time() - $days * 86400);
 				Data::write($file, $meta, 'json');
+				$this->trash()->flushIndex();
 				return;
 			}
 		}

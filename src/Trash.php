@@ -35,6 +35,12 @@ class Trash
 	 */
 	protected array $active = [];
 
+	/**
+	 * Request-scoped cache of all item metadata,
+	 * invalidated by every mutating operation
+	 */
+	protected array|null $index = null;
+
 	public function __construct(protected App $kirby)
 	{
 	}
@@ -85,17 +91,32 @@ class Trash
 			return static::DEFAULT_RETENTION_DAYS;
 		}
 
-		$days = (int)$days;
-
+		// check before the int cast, so fractional values
+		// like -0.5 don't truncate to 0 and re-enable cleanup
 		if ($days < 0) {
 			return null;
 		}
+
+		$days = (int)$days;
 
 		if ($days === 0) {
 			return static::DEFAULT_RETENTION_DAYS;
 		}
 
 		return $days;
+	}
+
+	/**
+	 * Marks a page root as being trashed, so nested delete hooks
+	 * for its files and children are skipped. Called by trashPage()
+	 * itself, so programmatic callers get the protection too.
+	 * Guarded roots are released by the `page.delete:after` hook;
+	 * if Kirby's deletion itself fails, the root stays guarded for
+	 * the rest of the request (and an orphaned trash item remains).
+	 */
+	protected function guard(string $root): void
+	{
+		$this->active[] = $root;
 	}
 
 	/**
@@ -141,21 +162,17 @@ class Trash
 				'type'         => 'page',
 				'id'           => $page->id(),
 				'title'        => $page->title()->value(),
-				'template'     => $page->intendedTemplate()->name(),
 				'parent'       => $parent?->id(),
-				'parentUuid'   => $this->uuidOf($parent),
+				'parentUuid'   => $this->uuidOf($parent, generate: true),
 				'uuid'         => $this->uuidOf($page),
 				'relativePath' => ltrim(substr($page->root(), strlen($parentRoot)), '/'),
-				'size'         => Dir::size($itemRoot . '/data') ?: 0,
-				'deletedAt'    => date('c'),
-				'deletedBy'    => $this->kirby->user()?->email(),
 			]);
 		} catch (Throwable $e) {
 			Dir::remove($itemRoot);
 			throw $e;
 		}
 
-		$this->active[] = $page->root();
+		$this->guard($page->root());
 
 		return $id;
 	}
@@ -183,22 +200,17 @@ class Trash
 			F::copy($file->root(), $dataRoot . '/' . $file->filename());
 
 			foreach ($this->companionFiles($sourceDir, $file->filename()) as $relative) {
-				$target = $dataRoot . '/' . $relative;
-				Dir::make(dirname($target));
-				F::copy($sourceDir . '/' . $relative, $target);
+				F::copy($sourceDir . '/' . $relative, $dataRoot . '/' . $relative);
 			}
 
 			$this->writeMeta($itemRoot, [
-				'type'       => 'file',
-				'id'         => $file->id(),
-				'title'      => $file->filename(),
-				'filename'   => $file->filename(),
-				'parent'     => $parent instanceof Page ? $parent->id() : null,
-				'parentUuid' => $parent instanceof Page ? $this->uuidOf($parent) : null,
-				'uuid'       => $this->uuidOf($file),
-				'size'       => Dir::size($dataRoot) ?: 0,
-				'deletedAt'  => date('c'),
-				'deletedBy'  => $this->kirby->user()?->email(),
+				'type'         => 'file',
+				'id'           => $file->id(),
+				'title'        => $file->filename(),
+				'parent'       => $parent instanceof Page ? $parent->id() : null,
+				'parentUuid'   => $parent instanceof Page ? $this->uuidOf($parent, generate: true) : null,
+				'uuid'         => $this->uuidOf($file),
+				'relativePath' => $file->filename(),
 			]);
 		} catch (Throwable $e) {
 			Dir::remove($itemRoot);
@@ -213,10 +225,21 @@ class Trash
 	 * its directory: `image.jpg.txt` in single-language setups,
 	 * `image.jpg.en.txt` etc. in multi-language setups, plus their
 	 * counterparts in the `_changes` folder (Kirby 5 versioning).
+	 *
+	 * Matches exact names only — a prefix match would also capture
+	 * content files of sibling files like `image.jpg.gz`.
 	 */
-	public function companionFiles(string $dir, string $filename): array
+	protected function companionFiles(string $dir, string $filename): array
 	{
 		$extension = $this->kirby->contentExtension();
+		$names     = [$filename . '.' . $extension];
+
+		if ($this->kirby->multilang() === true) {
+			foreach ($this->kirby->languages()->codes() as $code) {
+				$names[] = $filename . '.' . $code . '.' . $extension;
+			}
+		}
+
 		$relatives = [];
 
 		foreach ([null, '_changes'] as $subfolder) {
@@ -227,10 +250,7 @@ class Trash
 			}
 
 			foreach (Dir::files($scan) as $candidate) {
-				if (
-					str_starts_with($candidate, $filename . '.') === true &&
-					str_ends_with($candidate, '.' . $extension) === true
-				) {
+				if (in_array($candidate, $names, true) === true) {
 					$relatives[] = ($subfolder === null ? '' : $subfolder . '/') . $candidate;
 				}
 			}
@@ -240,14 +260,27 @@ class Trash
 	}
 
 	/**
+	 * Discards the request-scoped item cache; must be called by
+	 * anything that modifies the trash storage directly on disk
+	 */
+	public function flushIndex(): void
+	{
+		$this->index = null;
+	}
+
+	/**
 	 * All trash items, newest first
 	 */
 	public function items(): array
 	{
+		if ($this->index !== null) {
+			return $this->index;
+		}
+
 		$root = $this->root();
 
 		if (is_dir($root) === false) {
-			return [];
+			return $this->index = [];
 		}
 
 		$items = [];
@@ -259,6 +292,7 @@ class Trash
 				continue;
 			}
 
+			$meta = $this->normalizeMeta($meta);
 			$meta['trashId'] = $dir;
 			$items[] = $meta;
 		}
@@ -269,7 +303,7 @@ class Trash
 				strcmp($b['deletedAt'] ?? '', $a['deletedAt'] ?? '')
 		);
 
-		return $items;
+		return $this->index = $items;
 	}
 
 	public function item(string $id): array
@@ -278,12 +312,10 @@ class Trash
 		$file = $this->root() . '/' . $id . '/meta.json';
 
 		if (is_file($file) === false) {
-			throw new NotFoundException(
-				$this->t('sigtrygg-space.kirby-trash.error.notFound')
-			);
+			throw $this->notFound();
 		}
 
-		$meta = Data::read($file, 'json');
+		$meta = $this->normalizeMeta(Data::read($file, 'json'));
 		$meta['trashId'] = $id;
 
 		return $meta;
@@ -295,30 +327,24 @@ class Trash
 	 */
 	public function restore(string $id): void
 	{
-		$meta     = $this->item($id);
-		$itemRoot = $this->root() . '/' . $meta['trashId'];
-		$dataRoot = $itemRoot . '/data';
+		$meta       = $this->item($id);
+		$itemRoot   = $this->root() . '/' . $meta['trashId'];
+		$dataRoot   = $itemRoot . '/data';
+		$parentRoot = $this->resolveParentRoot($meta);
+		$target     = $parentRoot . '/' . $meta['relativePath'];
+
+		if (file_exists($target) === true) {
+			throw new DuplicateException(
+				key: 'sigtrygg-space.kirby-trash.exists',
+				fallback: 'The restore target already exists'
+			);
+		}
 
 		if (($meta['type'] ?? null) === 'page') {
-			$target = $this->resolveParentRoot($meta) . '/' . $meta['relativePath'];
-
-			if (is_dir($target) === true) {
-				throw new DuplicateException(
-					$this->t('sigtrygg-space.kirby-trash.error.exists')
-				);
-			}
-
 			Dir::copy($dataRoot, $target);
 		} else {
-			$parentRoot = $this->resolveParentRoot($meta);
-			$filename   = $meta['filename'] ?? basename($meta['id']);
-
-			if (is_file($parentRoot . '/' . $filename) === true) {
-				throw new DuplicateException(
-					$this->t('sigtrygg-space.kirby-trash.error.exists')
-				);
-			}
-
+			// merge the file and its companions into the
+			// live parent directory instead of replacing it
 			foreach (Dir::index($dataRoot, true) as $relative) {
 				$source = $dataRoot . '/' . $relative;
 
@@ -326,13 +352,12 @@ class Trash
 					continue;
 				}
 
-				$target = $parentRoot . '/' . $relative;
-				Dir::make(dirname($target));
-				F::copy($source, $target, true);
+				F::copy($source, $parentRoot . '/' . $relative, true);
 			}
 		}
 
 		Dir::remove($itemRoot);
+		$this->flushIndex();
 		$this->flushCaches();
 	}
 
@@ -345,12 +370,11 @@ class Trash
 		$root = $this->root() . '/' . $id;
 
 		if (is_dir($root) === false) {
-			throw new NotFoundException(
-				$this->t('sigtrygg-space.kirby-trash.error.notFound')
-			);
+			throw $this->notFound();
 		}
 
 		Dir::remove($root);
+		$this->flushIndex();
 	}
 
 	/**
@@ -369,6 +393,8 @@ class Trash
 			$path = $root . '/' . $entry;
 			is_dir($path) === true ? Dir::remove($path) : F::remove($path);
 		}
+
+		$this->flushIndex();
 	}
 
 	/**
@@ -398,11 +424,6 @@ class Trash
 		return $removed;
 	}
 
-	public function count(): int
-	{
-		return count($this->items());
-	}
-
 	public function totalSize(): int
 	{
 		return array_sum(
@@ -411,9 +432,12 @@ class Trash
 	}
 
 	/**
-	 * Permission check for the current user. Admins always have
-	 * access; other roles need an explicit permission grant
-	 * (`sigtrygg-space.kirby-trash` in the role blueprint).
+	 * Permission check for the current user. Admins are always
+	 * allowed: a site with a custom admin.yml blueprint that does
+	 * not state `permissions: true` would otherwise resolve the
+	 * registered plugin defaults (`false`) and lock admins out.
+	 * Other roles need an explicit `sigtrygg-space.kirby-trash`
+	 * grant in their role blueprint.
 	 */
 	public function can(string $action): bool
 	{
@@ -434,7 +458,8 @@ class Trash
 	{
 		if ($this->can($action) === false) {
 			throw new PermissionException(
-				$this->t('sigtrygg-space.kirby-trash.error.permission')
+				key: 'sigtrygg-space.kirby-trash.permission',
+				fallback: 'You are not allowed to do this'
 			);
 		}
 	}
@@ -460,7 +485,7 @@ class Trash
 				F::niceSize((int)($meta['size'] ?? 0)),
 				$deletedAt !== null ? date('Y-m-d H:i', $deletedAt) : null,
 				$remaining !== null
-					? $this->t('sigtrygg-space.kirby-trash.info.remaining', ['days' => $remaining])
+					? I18n::template('sigtrygg-space.kirby-trash.info.remaining', null, ['days' => $remaining])
 					: null,
 			];
 
@@ -484,7 +509,7 @@ class Trash
 			return 'page';
 		}
 
-		return match (F::type($meta['filename'] ?? '')) {
+		return match (F::type($meta['relativePath'] ?? '')) {
 			'image'    => 'image',
 			'video'    => 'video',
 			'audio'    => 'audio',
@@ -493,13 +518,12 @@ class Trash
 		};
 	}
 
-	/**
-	 * Translation with the key as last-resort fallback, so
-	 * exceptions never receive a null message
-	 */
-	protected function t(string $key, array $data = []): string
+	protected function notFound(): NotFoundException
 	{
-		return I18n::template($key, $key, $data);
+		return new NotFoundException(
+			key: 'sigtrygg-space.kirby-trash.notFound',
+			fallback: 'The trash item could not be found'
+		);
 	}
 
 	protected function createId(string $name): string
@@ -513,17 +537,40 @@ class Trash
 	protected function validateId(string $id): string
 	{
 		if ($id === '' || $id !== basename($id) || str_contains($id, '..') === true) {
-			throw new NotFoundException(
-				$this->t('sigtrygg-space.kirby-trash.error.notFound')
-			);
+			throw $this->notFound();
 		}
 
 		return $id;
 	}
 
+	/**
+	 * Writes the item metadata, appending the fields
+	 * shared by all item types
+	 */
 	protected function writeMeta(string $itemRoot, array $meta): void
 	{
-		Data::write($itemRoot . '/meta.json', $meta, 'json');
+		Data::write($itemRoot . '/meta.json', [
+			'version'   => 1,
+			...$meta,
+			'size'      => Dir::size($itemRoot . '/data') ?: 0,
+			'deletedAt' => date('c'),
+			'deletedBy' => $this->kirby->user()?->email(),
+		], 'json');
+
+		$this->flushIndex();
+	}
+
+	/**
+	 * Upgrades item metadata written by older plugin versions to
+	 * the current shape, in one place for all read paths.
+	 * Pre-1 metas stored the file name in `filename` instead
+	 * of `relativePath`.
+	 */
+	protected function normalizeMeta(array $meta): array
+	{
+		$meta['relativePath'] ??= $meta['filename'] ?? basename($meta['id'] ?? '');
+
+		return $meta;
 	}
 
 	/**
@@ -552,23 +599,52 @@ class Trash
 
 		if ($parent instanceof Page === false) {
 			throw new NotFoundException(
-				$this->t('sigtrygg-space.kirby-trash.error.missingParent', [
-					'parent' => $meta['parent'],
-				])
+				key: 'sigtrygg-space.kirby-trash.missingParent',
+				data: ['parent' => $meta['parent']],
+				fallback: 'The original parent page "{parent}" does not exist anymore'
 			);
 		}
 
 		return $parent->root();
 	}
 
-	protected function uuidOf(Page|File|null $model): string|null
+	/**
+	 * UUID of the given model as a `page://…`/`file://…` string,
+	 * or `null` when UUIDs are disabled or none is stored.
+	 *
+	 * For the model that is being deleted the stored UUID is read
+	 * without generating a missing one — generating would write into
+	 * content that is removed moments later. For surviving parents
+	 * `$generate` mints a missing UUID on purpose, so restoring
+	 * still works after the parent has been renamed.
+	 *
+	 * Never throws: this runs inside deletion-blocking hooks, and a
+	 * broken UUID must not prevent deletions site-wide.
+	 */
+	protected function uuidOf(Page|File|null $model, bool $generate = false): string|null
 	{
 		if ($model === null) {
 			return null;
 		}
 
 		try {
-			return $model->uuid()?->toString();
+			if ($generate === true) {
+				return $model->uuid()?->toString();
+			}
+
+			$uuid = Uuid::for($model); // null when UUIDs are disabled
+
+			if ($uuid === null) {
+				return null;
+			}
+
+			$id = $uuid::retrieveId($model);
+
+			if ($id === null || $id === '') {
+				return null;
+			}
+
+			return ($model instanceof Page ? 'page' : 'file') . '://' . $id;
 		} catch (Throwable) {
 			return null;
 		}
