@@ -34,6 +34,22 @@ and internal links keep working.
 composer require sigtrygg-space/kirby-trash
 ```
 
+> **Note:** this works once the plugin is published on Packagist. Until
+> then, add the repository to your site's `composer.json` and require the
+> development version:
+>
+> ```json
+> {
+>     "repositories": [
+>         { "type": "vcs", "url": "https://github.com/sigtrygg-space/kirby-trash" }
+>     ]
+> }
+> ```
+>
+> ```
+> composer require sigtrygg-space/kirby-trash:dev-main
+> ```
+
 ### Manual download
 
 Download and extract this repository to `site/plugins/kirby-trash`.
@@ -84,6 +100,8 @@ site/storage/
 
 Each trash entry is a folder containing the original data plus a `meta.json`
 with the original path, size, deletion date, the deleting user and UUIDs.
+The metadata carries a `version` field, and items written by older plugin
+versions are migrated on read — trash contents survive plugin upgrades.
 
 ### Automatic cleanup
 
@@ -98,8 +116,9 @@ kirby trash:cleanup
 
 ## Permissions
 
-By default only admins can see and manage the trash. Other roles can be
-allowed via their role blueprint:
+By default only admins can see and manage the trash. Admins always have
+access — a custom `admin.yml` blueprint cannot lock them out accidentally.
+Other roles can be allowed via their role blueprint:
 
 ```yaml
 # site/blueprints/users/editor.yml
