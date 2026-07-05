@@ -11,8 +11,8 @@
     "sigtrygg-space.kirby-trash.notification.deleted": "Endgültig gelöscht",
     "sigtrygg-space.kirby-trash.notification.emptied": "Der Papierkorb wurde geleert",
     "sigtrygg-space.kirby-trash.info.remaining": "Noch {days} Tag(e)",
-    "sigtrygg-space.kirby-trash.error.notFound": "Der Papierkorb-Eintrag wurde nicht gefunden",
-    "sigtrygg-space.kirby-trash.error.missingParent": "Die ursprüngliche Elternseite \"{parent}\" existiert nicht mehr",
-    "sigtrygg-space.kirby-trash.error.exists": "Das Wiederherstellungsziel existiert bereits",
-    "sigtrygg-space.kirby-trash.error.permission": "Dazu hast du keine Berechtigung"
+    "error.sigtrygg-space.kirby-trash.notFound": "Der Papierkorb-Eintrag wurde nicht gefunden",
+    "error.sigtrygg-space.kirby-trash.missingParent": "Die ursprüngliche Elternseite \"{parent}\" existiert nicht mehr",
+    "error.sigtrygg-space.kirby-trash.exists": "Das Wiederherstellungsziel existiert bereits",
+    "error.sigtrygg-space.kirby-trash.permission": "Dazu hast du keine Berechtigung"
 }

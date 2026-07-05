@@ -76,10 +76,11 @@ final class TrashTest extends TestCase
 		return $clone;
 	}
 
-	protected function createPage(string $slug, array $content = []): Page
+	protected function createPage(string $slug, array $content = [], Page|null $parent = null): Page
 	{
 		return Page::create([
 			'slug'     => $slug,
+			'parent'   => $parent,
 			'template' => 'default',
 			'content'  => ['title' => ucfirst($slug), ...$content],
 		]);
@@ -145,12 +146,7 @@ final class TrashTest extends TestCase
 	{
 		$parent = $this->createPage('parent');
 		$this->createFile($parent, 'test.jpg', ['alt' => 'An image']);
-		Page::create([
-			'slug'     => 'child',
-			'parent'   => $parent,
-			'template' => 'default',
-			'content'  => ['title' => 'Child'],
-		]);
+		$this->createPage('child', parent: $parent);
 
 		$parent = $this->fresh()->page('parent');
 		$parent->delete(true);
@@ -181,7 +177,7 @@ final class TrashTest extends TestCase
 		$items = $this->trash()->items();
 		$this->assertCount(1, $items);
 		$this->assertSame('file', $items[0]['type']);
-		$this->assertSame('test.jpg', $items[0]['filename']);
+		$this->assertSame('test.jpg', $items[0]['relativePath']);
 
 		$this->trash()->restore($items[0]['trashId']);
 
@@ -252,12 +248,7 @@ final class TrashTest extends TestCase
 	public function testRestoreFailsWhenParentIsGone(): void
 	{
 		$parent = $this->createPage('parent');
-		$child  = Page::create([
-			'slug'     => 'child',
-			'parent'   => $parent,
-			'template' => 'default',
-			'content'  => ['title' => 'Child'],
-		]);
+		$child  = $this->createPage('child', parent: $parent);
 
 		$child->delete();
 		$this->fresh()->page('parent')->delete(true);
@@ -385,6 +376,7 @@ final class TrashTest extends TestCase
 				$meta = Data::read($file, 'json');
 				$meta['deletedAt'] = date('c', time() - $days * 86400);
 				Data::write($file, $meta, 'json');
+				$this->trash()->flushIndex();
 				return;
 			}
 		}
