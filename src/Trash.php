@@ -300,10 +300,7 @@ class Trash
 		$file = $this->root() . '/' . $id . '/meta.json';
 
 		if (is_file($file) === false) {
-			throw new NotFoundException(
-				key: 'sigtrygg-space.kirby-trash.notFound',
-				fallback: 'The trash item could not be found'
-			);
+			throw $this->notFound();
 		}
 
 		$meta = Data::read($file, 'json');
@@ -363,10 +360,7 @@ class Trash
 		$root = $this->root() . '/' . $id;
 
 		if (is_dir($root) === false) {
-			throw new NotFoundException(
-				key: 'sigtrygg-space.kirby-trash.notFound',
-				fallback: 'The trash item could not be found'
-			);
+			throw $this->notFound();
 		}
 
 		Dir::remove($root);
@@ -505,6 +499,14 @@ class Trash
 		};
 	}
 
+	protected function notFound(): NotFoundException
+	{
+		return new NotFoundException(
+			key: 'sigtrygg-space.kirby-trash.notFound',
+			fallback: 'The trash item could not be found'
+		);
+	}
+
 	protected function createId(string $name): string
 	{
 		$slug = Str::slug($name);
@@ -516,10 +518,7 @@ class Trash
 	protected function validateId(string $id): string
 	{
 		if ($id === '' || $id !== basename($id) || str_contains($id, '..') === true) {
-			throw new NotFoundException(
-				key: 'sigtrygg-space.kirby-trash.notFound',
-				fallback: 'The trash item could not be found'
-			);
+			throw $this->notFound();
 		}
 
 		return $id;
@@ -578,17 +577,18 @@ class Trash
 
 	/**
 	 * Reads the stored UUID without generating a missing one:
-	 * generating would write to content that is about to be deleted
+	 * generating would write to content that is about to be deleted.
+	 * `Uuid::for()` also returns `null` when UUIDs are disabled.
 	 */
 	protected function uuidOf(Page|File|null $model): string|null
 	{
-		$stored = $model?->content()->get('uuid')->value();
+		$uuid = $model === null ? null : Uuid::for($model);
 
-		if (is_string($stored) === false || $stored === '') {
+		if ($uuid === null || $uuid->uri->host() === null) {
 			return null;
 		}
 
-		return ($model instanceof Page ? 'page' : 'file') . '://' . $stored;
+		return $uuid->uri->toString();
 	}
 
 	/**
