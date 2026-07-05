@@ -19,9 +19,9 @@ App::plugin('sigtrygg-space/kirby-trash', [
 		'root'          => null,
 	],
 
-	// default: no access for non-admin roles (admins get everything
-	// through Kirby's own permission resolution). Other roles can be
-	// allowed via the role blueprint.
+	// default: no access for non-admin roles; admins are always
+	// allowed (see Trash::can()). Other roles can be allowed via
+	// the role blueprint.
 	'permissions' => [
 		'access'  => false,
 		'restore' => false,
@@ -35,7 +35,9 @@ App::plugin('sigtrygg-space/kirby-trash', [
 
 	'hooks' => [
 		// the page still exists on disk here; a failing copy throws
-		// and thereby blocks the actual deletion (safety net)
+		// and thereby blocks the actual deletion (safety net).
+		// trashPage() also guards the root, so the nested hooks of
+		// the page's own files and children don't create own items
 		'page.delete:before' => function (Page $page) {
 			$trash = Trash::instance();
 
@@ -44,12 +46,8 @@ App::plugin('sigtrygg-space/kirby-trash', [
 			}
 
 			$trash->trashPage($page);
-
-			// Kirby deletes files and children individually with their
-			// own hooks; guard the root so they don't get own items
-			$trash->guard($page->root());
 		},
-		'page.delete:after' => function (bool $status, Page $page) {
+		'page.delete:after' => function (Page $page) {
 			Trash::instance()->release($page->root());
 		},
 		'file.delete:before' => function (File $file) {

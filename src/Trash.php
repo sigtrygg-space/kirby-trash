@@ -91,11 +91,13 @@ class Trash
 			return static::DEFAULT_RETENTION_DAYS;
 		}
 
-		$days = (int)$days;
-
+		// check before the int cast, so fractional values
+		// like -0.5 don't truncate to 0 and re-enable cleanup
 		if ($days < 0) {
 			return null;
 		}
+
+		$days = (int)$days;
 
 		if ($days === 0) {
 			return static::DEFAULT_RETENTION_DAYS;
@@ -106,12 +108,13 @@ class Trash
 
 	/**
 	 * Marks a page root as being trashed, so nested delete hooks
-	 * for its files and children are skipped. Guarded roots are
-	 * released by the `page.delete:after` hook; if Kirby's deletion
-	 * itself fails, the root stays guarded for the rest of the
-	 * request (and an orphaned trash item remains).
+	 * for its files and children are skipped. Called by trashPage()
+	 * itself, so programmatic callers get the protection too.
+	 * Guarded roots are released by the `page.delete:after` hook;
+	 * if Kirby's deletion itself fails, the root stays guarded for
+	 * the rest of the request (and an orphaned trash item remains).
 	 */
-	public function guard(string $root): void
+	protected function guard(string $root): void
 	{
 		$this->active[] = $root;
 	}
@@ -160,7 +163,7 @@ class Trash
 				'id'           => $page->id(),
 				'title'        => $page->title()->value(),
 				'parent'       => $parent?->id(),
-				'parentUuid'   => $this->uuidOf($parent),
+				'parentUuid'   => $this->uuidOf($parent, generate: true),
 				'uuid'         => $this->uuidOf($page),
 				'relativePath' => ltrim(substr($page->root(), strlen($parentRoot)), '/'),
 			]);
@@ -168,6 +171,8 @@ class Trash
 			Dir::remove($itemRoot);
 			throw $e;
 		}
+
+		$this->guard($page->root());
 
 		return $id;
 	}
@@ -195,9 +200,7 @@ class Trash
 			F::copy($file->root(), $dataRoot . '/' . $file->filename());
 
 			foreach ($this->companionFiles($sourceDir, $file->filename()) as $relative) {
-				$target = $dataRoot . '/' . $relative;
-				Dir::make(dirname($target));
-				F::copy($sourceDir . '/' . $relative, $target);
+				F::copy($sourceDir . '/' . $relative, $dataRoot . '/' . $relative);
 			}
 
 			$this->writeMeta($itemRoot, [
@@ -205,7 +208,7 @@ class Trash
 				'id'           => $file->id(),
 				'title'        => $file->filename(),
 				'parent'       => $parent instanceof Page ? $parent->id() : null,
-				'parentUuid'   => $parent instanceof Page ? $this->uuidOf($parent) : null,
+				'parentUuid'   => $parent instanceof Page ? $this->uuidOf($parent, generate: true) : null,
 				'uuid'         => $this->uuidOf($file),
 				'relativePath' => $file->filename(),
 			]);
@@ -222,10 +225,21 @@ class Trash
 	 * its directory: `image.jpg.txt` in single-language setups,
 	 * `image.jpg.en.txt` etc. in multi-language setups, plus their
 	 * counterparts in the `_changes` folder (Kirby 5 versioning).
+	 *
+	 * Matches exact names only — a prefix match would also capture
+	 * content files of sibling files like `image.jpg.gz`.
 	 */
 	protected function companionFiles(string $dir, string $filename): array
 	{
 		$extension = $this->kirby->contentExtension();
+		$names     = [$filename . '.' . $extension];
+
+		if ($this->kirby->multilang() === true) {
+			foreach ($this->kirby->languages()->codes() as $code) {
+				$names[] = $filename . '.' . $code . '.' . $extension;
+			}
+		}
+
 		$relatives = [];
 
 		foreach ([null, '_changes'] as $subfolder) {
@@ -236,10 +250,7 @@ class Trash
 			}
 
 			foreach (Dir::files($scan) as $candidate) {
-				if (
-					str_starts_with($candidate, $filename . '.') === true &&
-					str_ends_with($candidate, '.' . $extension) === true
-				) {
+				if (in_array($candidate, $names, true) === true) {
 					$relatives[] = ($subfolder === null ? '' : $subfolder . '/') . $candidate;
 				}
 			}
@@ -281,6 +292,7 @@ class Trash
 				continue;
 			}
 
+			$meta = $this->normalizeMeta($meta);
 			$meta['trashId'] = $dir;
 			$items[] = $meta;
 		}
@@ -303,7 +315,7 @@ class Trash
 			throw $this->notFound();
 		}
 
-		$meta = Data::read($file, 'json');
+		$meta = $this->normalizeMeta(Data::read($file, 'json'));
 		$meta['trashId'] = $id;
 
 		return $meta;
@@ -340,9 +352,7 @@ class Trash
 					continue;
 				}
 
-				$file = $parentRoot . '/' . $relative;
-				Dir::make(dirname($file));
-				F::copy($source, $file, true);
+				F::copy($source, $parentRoot . '/' . $relative, true);
 			}
 		}
 
@@ -422,17 +432,26 @@ class Trash
 	}
 
 	/**
-	 * Permission check for the current user, resolved entirely
-	 * through Kirby's permission system: the registered defaults
-	 * are `false`, so only admins (whose role expands `*` to all
-	 * plugin permissions) have access unless a role blueprint
-	 * grants `sigtrygg-space.kirby-trash` explicitly.
+	 * Permission check for the current user. Admins are always
+	 * allowed: a site with a custom admin.yml blueprint that does
+	 * not state `permissions: true` would otherwise resolve the
+	 * registered plugin defaults (`false`) and lock admins out.
+	 * Other roles need an explicit `sigtrygg-space.kirby-trash`
+	 * grant in their role blueprint.
 	 */
 	public function can(string $action): bool
 	{
-		return $this->kirby->user()
-			?->role()->permissions()
-			->for('sigtrygg-space.kirby-trash', $action) === true;
+		$user = $this->kirby->user();
+
+		if ($user === null) {
+			return false;
+		}
+
+		if ($user->isAdmin() === true) {
+			return true;
+		}
+
+		return $user->role()->permissions()->for('sigtrygg-space.kirby-trash', $action) === true;
 	}
 
 	public function ensure(string $action): void
@@ -531,6 +550,7 @@ class Trash
 	protected function writeMeta(string $itemRoot, array $meta): void
 	{
 		Data::write($itemRoot . '/meta.json', [
+			'version'   => 1,
 			...$meta,
 			'size'      => Dir::size($itemRoot . '/data') ?: 0,
 			'deletedAt' => date('c'),
@@ -538,6 +558,19 @@ class Trash
 		], 'json');
 
 		$this->flushIndex();
+	}
+
+	/**
+	 * Upgrades item metadata written by older plugin versions to
+	 * the current shape, in one place for all read paths.
+	 * Pre-1 metas stored the file name in `filename` instead
+	 * of `relativePath`.
+	 */
+	protected function normalizeMeta(array $meta): array
+	{
+		$meta['relativePath'] ??= $meta['filename'] ?? basename($meta['id'] ?? '');
+
+		return $meta;
 	}
 
 	/**
@@ -576,19 +609,45 @@ class Trash
 	}
 
 	/**
-	 * Reads the stored UUID without generating a missing one:
-	 * generating would write to content that is about to be deleted.
-	 * `Uuid::for()` also returns `null` when UUIDs are disabled.
+	 * UUID of the given model as a `page://…`/`file://…` string,
+	 * or `null` when UUIDs are disabled or none is stored.
+	 *
+	 * For the model that is being deleted the stored UUID is read
+	 * without generating a missing one — generating would write into
+	 * content that is removed moments later. For surviving parents
+	 * `$generate` mints a missing UUID on purpose, so restoring
+	 * still works after the parent has been renamed.
+	 *
+	 * Never throws: this runs inside deletion-blocking hooks, and a
+	 * broken UUID must not prevent deletions site-wide.
 	 */
-	protected function uuidOf(Page|File|null $model): string|null
+	protected function uuidOf(Page|File|null $model, bool $generate = false): string|null
 	{
-		$uuid = $model === null ? null : Uuid::for($model);
-
-		if ($uuid === null || $uuid->uri->host() === null) {
+		if ($model === null) {
 			return null;
 		}
 
-		return $uuid->uri->toString();
+		try {
+			if ($generate === true) {
+				return $model->uuid()?->toString();
+			}
+
+			$uuid = Uuid::for($model); // null when UUIDs are disabled
+
+			if ($uuid === null) {
+				return null;
+			}
+
+			$id = $uuid::retrieveId($model);
+
+			if ($id === null || $id === '') {
+				return null;
+			}
+
+			return ($model instanceof Page ? 'page' : 'file') . '://' . $id;
+		} catch (Throwable) {
+			return null;
+		}
 	}
 
 	/**
