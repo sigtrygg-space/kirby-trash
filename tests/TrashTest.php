@@ -191,6 +191,39 @@ final class TrashTest extends TestCase
 		$this->assertFalse($trash->covers('C:\\sites\\demo\\content\\1_photography'));
 	}
 
+	public function testPanelItemsProvideTableRows(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$rows = $this->trash()->panelItems();
+
+		$this->assertCount(1, $rows);
+		$this->assertSame('Note', $rows[0]['title']);
+		$this->assertSame('note', $rows[0]['path']);
+		$this->assertSame('30 days left', $rows[0]['remaining']);
+		$this->assertNotEmpty($rows[0]['size']);
+		$this->assertNotEmpty($rows[0]['deletedAt']);
+		$this->assertArrayHasKey('trashId', $rows[0]);
+	}
+
+	public function testPanelItemsPluralizeRemainingDays(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		// one day left: deleted (retention - 1) days ago
+		$this->backdateItem('note', 29);
+		$this->assertSame('1 day left', $this->trash()->panelItems()[0]['remaining']);
+
+		// retention disabled: kept forever
+		App::destroy();
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.retentionDays' => -1,
+		]);
+		$this->assertSame('Kept forever', $this->trash()->panelItems()[0]['remaining']);
+	}
+
 	public function testRestoreFileWithCompanionContentFiles(): void
 	{
 		$page = $this->createPage('gallery');

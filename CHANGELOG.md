@@ -7,7 +7,8 @@ Initial release.
 - Soft-delete for pages and files via `page.delete:before` /
   `file.delete:before` hooks
 - Failing trash copies block the actual deletion (safety net)
-- Panel area with restore, permanent delete and "empty trash"
+- Panel area with restore, permanent delete and "empty trash"; items are
+  listed as a table with original path, size, deletion date and time left
 - Automatic cleanup with configurable retention (`retentionDays`,
   default 30, `-1` = keep forever)
 - `kirby trash:cleanup` CLI command for cronjobs
