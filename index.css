@@ -14,6 +14,14 @@
   overflow-wrap: anywhere;
 }
 
+/* same grid, gap and button height as Kirby's dialog footer
+   (.k-dialog-buttons), so the action buttons match the close
+   button; auto-fit stacks them on narrow screens instead of
+   overflowing */
 .k-trash-details-dialog .k-trash-details-actions {
   margin-top: var(--spacing-6);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--spacing-3);
+  --button-height: var(--height-lg);
 }

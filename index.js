@@ -120,7 +120,6 @@ panel.plugin("sigtrygg-space/kirby-trash", {
             <k-button
               icon="undo"
               variant="filled"
-              size="sm"
               :disabled="!canRestore"
               :dialog="'trash/' + trashId + '/restore'"
             >
@@ -130,7 +129,6 @@ panel.plugin("sigtrygg-space/kirby-trash", {
               icon="trash"
               variant="filled"
               theme="negative"
-              size="sm"
               :disabled="!canDelete"
               :dialog="'trash/' + trashId + '/delete'"
             >
