@@ -509,32 +509,40 @@ class Trash
 	 */
 	public function panelItems(): array
 	{
-		$days = $this->retentionDays();
-		$rows = [];
+		return array_map($this->panelRow(...), $this->items());
+	}
 
-		foreach ($this->items() as $meta) {
-			$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
-			$remaining = null;
+	/**
+	 * A single item in the same shape as panelItems();
+	 * used by the details dialog
+	 */
+	public function panelItem(string $id): array
+	{
+		return $this->panelRow($this->item($id));
+	}
 
-			if ($days !== null && $deletedAt !== null) {
-				$remaining = max(0, (int)ceil(($deletedAt + $days * 86400 - time()) / 86400));
-			}
+	protected function panelRow(array $meta): array
+	{
+		$days      = $this->retentionDays();
+		$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
+		$remaining = null;
 
-			$rows[] = [
-				'trashId'   => $meta['trashId'],
-				'title'     => $meta['title'] ?? $meta['id'] ?? $meta['trashId'],
-				'path'      => $meta['id'] ?? '',
-				'size'      => F::niceSize((int)($meta['size'] ?? 0)),
-				'deletedAt' => $deletedAt !== null ? date('Y-m-d H:i', $deletedAt) : '',
-				// not a table column; shown in the details dialog
-				'deletedBy' => $meta['deletedBy'] ?? '',
-				'remaining' => $remaining === null
-					? I18n::translate('sigtrygg-space.kirby-trash.remaining.forever', 'Kept forever')
-					: I18n::translateCount('sigtrygg-space.kirby-trash.remaining', $remaining),
-			];
+		if ($days !== null && $deletedAt !== null) {
+			$remaining = max(0, (int)ceil(($deletedAt + $days * 86400 - time()) / 86400));
 		}
 
-		return $rows;
+		return [
+			'trashId'   => $meta['trashId'],
+			'title'     => $meta['title'] ?? $meta['id'] ?? $meta['trashId'],
+			'path'      => $meta['id'] ?? '',
+			'size'      => F::niceSize((int)($meta['size'] ?? 0)),
+			'deletedAt' => $deletedAt !== null ? date('Y-m-d H:i', $deletedAt) : '',
+			// not a table column; shown in the details dialog
+			'deletedBy' => $meta['deletedBy'] ?? '',
+			'remaining' => $remaining === null
+				? I18n::translate('sigtrygg-space.kirby-trash.remaining.forever', 'Kept forever')
+				: I18n::translateCount('sigtrygg-space.kirby-trash.remaining', $remaining),
+		];
 	}
 
 	protected function notFound(): NotFoundException

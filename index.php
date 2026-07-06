@@ -5,6 +5,7 @@ use Kirby\Cms\File;
 use Kirby\Cms\Page;
 use Kirby\Data\Data;
 use Kirby\Filesystem\F;
+use Kirby\Toolkit\Escape;
 use Kirby\Toolkit\I18n;
 use SigtryggSpace\KirbyTrash\Trash;
 
@@ -125,7 +126,8 @@ App::plugin('sigtrygg-space/kirby-trash', [
 				'views' => [
 					[
 						'pattern' => 'trash',
-						'action'  => function () use ($trash) {
+						'action'  => function () {
+							$trash = Trash::instance();
 							$trash->ensure('access');
 							$trash->cleanup();
 
@@ -136,8 +138,144 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									'items'      => $trash->panelItems(),
 									'canRestore' => $trash->can('restore'),
 									'canDelete'  => $trash->can('delete'),
-									'totalSize'  => F::niceSize($trash->totalSize()),
 								],
+							];
+						},
+					],
+				],
+
+				// backend-defined dialogs: submitting runs through the
+				// Panel's dialog pipeline, which disables the submit
+				// button, shows a loading spinner and reloads the view
+				'dialogs' => [
+					'trash.details' => [
+						'pattern' => 'trash/(:any)/details',
+						'load' => function (string $id) {
+							$trash = Trash::instance();
+							$trash->ensure('access');
+
+							$row    = $trash->panelItem($id);
+							$fields = [];
+
+							$labels = [
+								'title'     => 'column.title',
+								'path'      => 'column.path',
+								'size'      => 'column.size',
+								'deletedAt' => 'column.deleted',
+								'deletedBy' => 'deletedBy',
+								'remaining' => 'column.remaining',
+							];
+
+							foreach ($labels as $key => $label) {
+								if (($row[$key] ?? '') !== '') {
+									$fields[] = [
+										'label' => I18n::translate('sigtrygg-space.kirby-trash.' . $label),
+										'value' => $row[$key],
+									];
+								}
+							}
+
+							return [
+								'component' => 'k-trash-details-dialog',
+								'props' => [
+									'fields'     => $fields,
+									'trashId'    => $row['trashId'],
+									'canRestore' => $trash->can('restore'),
+									'canDelete'  => $trash->can('delete'),
+								],
+							];
+						},
+						// the dialog is read-only; submit is the close button
+						'submit' => fn () => true,
+					],
+					'trash.restore' => [
+						'pattern' => 'trash/(:any)/restore',
+						'load' => function (string $id) {
+							$trash = Trash::instance();
+							$trash->ensure('restore');
+
+							$item = $trash->item($id);
+
+							return [
+								'component' => 'k-text-dialog',
+								'props' => [
+									'text' => I18n::template('sigtrygg-space.kirby-trash.dialog.restore', null, [
+										'title' => Escape::html($item['title'] ?? $id),
+									]),
+									'submitButton' => [
+										'icon' => 'undo',
+										'text' => I18n::translate('sigtrygg-space.kirby-trash.restore'),
+									],
+								],
+							];
+						},
+						'submit' => function (string $id) {
+							$trash = Trash::instance();
+							$trash->ensure('restore');
+							$trash->restore($id);
+
+							return [
+								'message' => I18n::translate('sigtrygg-space.kirby-trash.notification.restored'),
+							];
+						},
+					],
+					'trash.delete' => [
+						'pattern' => 'trash/(:any)/delete',
+						'load' => function (string $id) {
+							$trash = Trash::instance();
+							$trash->ensure('delete');
+
+							$item = $trash->item($id);
+
+							return [
+								'component' => 'k-remove-dialog',
+								'props' => [
+									'text' => I18n::template('sigtrygg-space.kirby-trash.dialog.delete', null, [
+										'title' => Escape::html($item['title'] ?? $id),
+									]),
+								],
+							];
+						},
+						'submit' => function (string $id) {
+							$trash = Trash::instance();
+							$trash->ensure('delete');
+							$trash->delete($id);
+
+							return [
+								'message' => I18n::translate('sigtrygg-space.kirby-trash.notification.deleted'),
+							];
+						},
+					],
+					'trash.empty' => [
+						'pattern' => 'trash/empty',
+						'load' => function () {
+							$trash = Trash::instance();
+							$trash->ensure('delete');
+
+							$count = count($trash->items());
+							$key   = $count === 1 ? 'one' : 'many';
+
+							return [
+								'component' => 'k-remove-dialog',
+								'props' => [
+									'text' => I18n::template('sigtrygg-space.kirby-trash.dialog.empty.' . $key, null, [
+										'count' => $count,
+										'size'  => F::niceSize($trash->totalSize()),
+									]),
+									'submitButton' => [
+										'icon' => 'trash',
+										'text' => I18n::translate('sigtrygg-space.kirby-trash.emptyTrash'),
+									],
+								],
+							];
+						},
+						'submit' => function () {
+							$trash = Trash::instance();
+							$trash->ensure('delete');
+							$trash->emptyTrash();
+
+							return [
+								'message' => I18n::translate('sigtrygg-space.kirby-trash.notification.emptied'),
 							];
 						},
 					],

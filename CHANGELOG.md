@@ -9,8 +9,12 @@ Initial release.
 - Failing trash copies block the actual deletion (safety net)
 - Panel area with restore, permanent delete and "empty trash"; items are
   listed as a table with original path, size, deletion date and time left,
-  and a details dialog shows all metadata (also on small screens, where
-  the table is reduced to the most important columns)
+  and a details dialog shows all metadata plus the restore / delete
+  actions (also on small screens, where the table is reduced to the most
+  important columns)
+- All dialogs are defined in the backend and run through the Panel's
+  dialog pipeline: while restore / delete / empty is running, the submit
+  button is disabled and shows a loading spinner
 - `enabled` and `root` options accept closures for logic-driven switching;
   a disabled trash also hides its Panel area and refuses its API
 - Automatic cleanup with configurable retention (`retentionDays`,

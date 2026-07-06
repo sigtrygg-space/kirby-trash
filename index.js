@@ -7,8 +7,7 @@ panel.plugin("sigtrygg-space/kirby-trash", {
           default: () => []
         },
         canRestore: Boolean,
-        canDelete: Boolean,
-        totalSize: String
+        canDelete: Boolean
       },
       computed: {
         columns() {
@@ -63,102 +62,14 @@ panel.plugin("sigtrygg-space/kirby-trash", {
         }
       },
       methods: {
+        // all dialogs are defined in the plugin's PHP backend;
+        // submitting runs through the Panel's dialog pipeline
+        // (loading spinner, disabled buttons, view reload)
         onOption(option, item) {
-          if (option === "details") {
-            return this.details(item);
-          }
-
-          if (option === "restore") {
-            return this.restore(item);
-          }
-
-          if (option === "delete") {
-            return this.remove(item);
-          }
-        },
-        details(item) {
-          const t = (key) => this.$t("sigtrygg-space.kirby-trash." + key);
-
-          this.$panel.dialog.open({
-            component: "k-trash-details-dialog",
-            props: {
-              fields: [
-                { label: t("column.title"), value: item.title },
-                { label: t("column.path"), value: item.path },
-                { label: t("column.size"), value: item.size },
-                { label: t("column.deleted"), value: item.deletedAt },
-                { label: t("deletedBy"), value: item.deletedBy },
-                { label: t("column.remaining"), value: item.remaining }
-              ].filter((field) => field.value)
-            },
-            on: {
-              submit: () => this.$panel.dialog.close()
-            }
-          });
-        },
-        restore(item) {
-          this.$panel.dialog.open({
-            component: "k-text-dialog",
-            props: {
-              text: this.$t("sigtrygg-space.kirby-trash.dialog.restore", {
-                title: item.title
-              }),
-              submitButton: {
-                icon: "undo",
-                text: this.$t("sigtrygg-space.kirby-trash.restore")
-              }
-            },
-            on: {
-              submit: () =>
-                this.request("post", "trash/" + item.trashId + "/restore", "restored")
-            }
-          });
-        },
-        remove(item) {
-          this.$panel.dialog.open({
-            component: "k-remove-dialog",
-            props: {
-              text: this.$t("sigtrygg-space.kirby-trash.dialog.delete", {
-                title: item.title
-              })
-            },
-            on: {
-              submit: () => this.request("delete", "trash/" + item.trashId, "deleted")
-            }
-          });
+          this.$panel.dialog.open("trash/" + item.trashId + "/" + option);
         },
         emptyTrash() {
-          const count = this.items.length;
-
-          this.$panel.dialog.open({
-            component: "k-remove-dialog",
-            props: {
-              text: this.$t(
-                "sigtrygg-space.kirby-trash.dialog.empty." +
-                  (count === 1 ? "one" : "many"),
-                { count, size: this.totalSize }
-              ),
-              submitButton: {
-                icon: "trash",
-                text: this.$t("sigtrygg-space.kirby-trash.emptyTrash")
-              }
-            },
-            on: {
-              submit: () => this.request("delete", "trash", "emptied")
-            }
-          });
-        },
-        async request(method, path, successKey) {
-          try {
-            await this.$api[method](path);
-            this.$panel.dialog.close();
-            this.$panel.notification.success(
-              this.$t("sigtrygg-space.kirby-trash.notification." + successKey)
-            );
-            this.$panel.view.reload();
-          } catch (error) {
-            this.$panel.error(error);
-          }
+          this.$panel.dialog.open("trash/empty");
         }
       },
       template: `
@@ -198,6 +109,9 @@ panel.plugin("sigtrygg-space/kirby-trash", {
           type: Array,
           default: () => []
         },
+        trashId: String,
+        canRestore: Boolean,
+        canDelete: Boolean,
         // passed by the panel's dialog island; must be forwarded to
         // k-dialog explicitly — Vue 2 attribute fallthrough only sets
         // it as a DOM attribute, not as the k-dialog prop, and without
@@ -210,6 +124,16 @@ panel.plugin("sigtrygg-space/kirby-trash", {
       computed: {
         submitButton() {
           return { text: this.$t("close") };
+        }
+      },
+      methods: {
+        // hands over to the backend confirmation dialogs,
+        // replacing this dialog
+        restore() {
+          this.$panel.dialog.open("trash/" + this.trashId + "/restore");
+        },
+        remove() {
+          this.$panel.dialog.open("trash/" + this.trashId + "/delete");
         }
       },
       template: `
@@ -227,6 +151,30 @@ panel.plugin("sigtrygg-space/kirby-trash", {
               <dd>{{ field.value }}</dd>
             </div>
           </dl>
+          <k-button-group
+            v-if="canRestore || canDelete"
+            class="k-trash-details-actions"
+          >
+            <k-button
+              icon="undo"
+              variant="filled"
+              size="sm"
+              :disabled="!canRestore"
+              @click="restore"
+            >
+              {{ $t("sigtrygg-space.kirby-trash.restore") }}
+            </k-button>
+            <k-button
+              icon="trash"
+              variant="filled"
+              theme="negative"
+              size="sm"
+              :disabled="!canDelete"
+              @click="remove"
+            >
+              {{ $t("sigtrygg-space.kirby-trash.delete") }}
+            </k-button>
+          </k-button-group>
         </k-dialog>
       `
     }

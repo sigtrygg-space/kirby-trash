@@ -223,6 +223,46 @@ final class TrashTest extends TestCase
 		$this->assertSame('Kept forever', $this->trash()->panelItems()[0]['remaining']);
 	}
 
+	public function testPanelDialogs(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$item    = $this->trash()->items()[0];
+		$area    = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$dialogs = $area['dialogs'];
+
+		// details: read-only, lists all metadata fields
+		$details = $dialogs['trash.details']['load']($item['trashId']);
+		$this->assertSame('k-trash-details-dialog', $details['component']);
+		$this->assertSame($item['trashId'], $details['props']['trashId']);
+		$this->assertContains('Original path', array_column($details['props']['fields'], 'label'));
+		$this->assertTrue($dialogs['trash.details']['submit']());
+
+		// restore: confirmation text with the title, submit restores
+		$restore = $dialogs['trash.restore']['load']($item['trashId']);
+		$this->assertSame('k-text-dialog', $restore['component']);
+		$this->assertStringContainsString('Note', $restore['props']['text']);
+
+		$this->assertSame('Restored', $dialogs['trash.restore']['submit']($item['trashId'])['message']);
+		$this->assertNotNull($this->fresh()->page('note'));
+		$this->assertCount(0, $this->trash()->items());
+
+		// delete: submit removes the item permanently
+		$this->fresh()->page('note')->delete();
+		$item = $this->trash()->items()[0];
+		$this->assertSame('k-remove-dialog', $dialogs['trash.delete']['load']($item['trashId'])['component']);
+		$this->assertSame('Deleted permanently', $dialogs['trash.delete']['submit']($item['trashId'])['message']);
+		$this->assertCount(0, $this->trash()->items());
+
+		// empty: singular text for a single item, submit empties
+		$this->createPage('note-2');
+		$this->fresh()->page('note-2')->delete();
+		$this->assertStringContainsString('1 item ', $dialogs['trash.empty']['load']()['props']['text']);
+		$this->assertSame('The trash has been emptied', $dialogs['trash.empty']['submit']()['message']);
+		$this->assertCount(0, $this->trash()->items());
+	}
+
 	public function testRestoreFileWithCompanionContentFiles(): void
 	{
 		$page = $this->createPage('gallery');

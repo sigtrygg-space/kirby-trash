@@ -13,3 +13,7 @@
 .k-trash-details-dialog dd {
   overflow-wrap: anywhere;
 }
+
+.k-trash-details-dialog .k-trash-details-actions {
+  margin-top: var(--spacing-6);
+}
