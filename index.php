@@ -62,58 +62,6 @@ App::plugin('sigtrygg-space/kirby-trash', [
 		},
 	],
 
-	'api' => [
-		'routes' => [
-			[
-				'pattern' => 'trash',
-				'method'  => 'GET',
-				'action'  => function () {
-					$trash = Trash::instance();
-					$trash->ensure('access');
-					$trash->cleanup();
-
-					return [
-						'items' => $trash->items(),
-						'size'  => $trash->totalSize(),
-					];
-				},
-			],
-			[
-				'pattern' => 'trash/(:any)/restore',
-				'method'  => 'POST',
-				'action'  => function (string $id) {
-					$trash = Trash::instance();
-					$trash->ensure('restore');
-					$trash->restore($id);
-
-					return ['status' => 'ok'];
-				},
-			],
-			[
-				'pattern' => 'trash/(:any)',
-				'method'  => 'DELETE',
-				'action'  => function (string $id) {
-					$trash = Trash::instance();
-					$trash->ensure('delete');
-					$trash->delete($id);
-
-					return ['status' => 'ok'];
-				},
-			],
-			[
-				'pattern' => 'trash',
-				'method'  => 'DELETE',
-				'action'  => function () {
-					$trash = Trash::instance();
-					$trash->ensure('delete');
-					$trash->emptyTrash();
-
-					return ['status' => 'ok'];
-				},
-			],
-		],
-	],
-
 	'areas' => [
 		'trash' => function (App $kirby) {
 			$trash = Trash::instance();
