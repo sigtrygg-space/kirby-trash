@@ -27,3 +27,6 @@ Fixed during the pre-release test round:
 - Windows: the guard against nested delete hooks compared roots with
   mixed path separators literally, so deleting a page with children
   created one trash entry per descendant instead of a single entry
+- Panel: the details dialog opened as an empty overlay — custom dialog
+  components have to declare the `visible` prop and forward it to
+  `k-dialog`, Vue 2 attribute fallthrough does not
