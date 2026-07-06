@@ -2,6 +2,7 @@
 
 namespace SigtryggSpace\KirbyTrash;
 
+use Closure;
 use Kirby\Cms\App;
 use Kirby\Cms\File;
 use Kirby\Cms\Page;
@@ -56,16 +57,27 @@ class Trash
 		return static::$instance;
 	}
 
+	/**
+	 * Besides a boolean the option accepts a closure for
+	 * logic-driven switching, e.g. by environment:
+	 * `'enabled' => fn ($kirby) => $kirby->system()->isLocal() === false`
+	 */
 	public function enabled(): bool
 	{
-		return $this->kirby->option('sigtrygg-space.kirby-trash.enabled', true) !== false;
+		$enabled = $this->kirby->option('sigtrygg-space.kirby-trash.enabled', true);
+
+		if ($enabled instanceof Closure) {
+			$enabled = $enabled($this->kirby);
+		}
+
+		return $enabled !== false;
 	}
 
 	public function root(): string
 	{
 		$root = $this->kirby->option('sigtrygg-space.kirby-trash.root');
 
-		if (is_callable($root) === true) {
+		if ($root instanceof Closure) {
 			$root = $root($this->kirby);
 		}
 
@@ -469,8 +481,20 @@ class Trash
 		return $user->role()->permissions()->for('sigtrygg-space.kirby-trash', $action) === true;
 	}
 
+	/**
+	 * Gate for the Panel area and the API routes: a disabled
+	 * plugin refuses them entirely, everything else depends on
+	 * the current user's permissions
+	 */
 	public function ensure(string $action): void
 	{
+		if ($this->enabled() === false) {
+			throw new PermissionException(
+				key: 'sigtrygg-space.kirby-trash.disabled',
+				fallback: 'The trash is disabled'
+			);
+		}
+
 		if ($this->can($action) === false) {
 			throw new PermissionException(
 				key: 'sigtrygg-space.kirby-trash.permission',
@@ -502,6 +526,8 @@ class Trash
 				'path'      => $meta['id'] ?? '',
 				'size'      => F::niceSize((int)($meta['size'] ?? 0)),
 				'deletedAt' => $deletedAt !== null ? date('Y-m-d H:i', $deletedAt) : '',
+				// not a table column; shown in the details dialog
+				'deletedBy' => $meta['deletedBy'] ?? '',
 				'remaining' => $remaining === null
 					? I18n::translate('sigtrygg-space.kirby-trash.remaining.forever', 'Kept forever')
 					: I18n::translateCount('sigtrygg-space.kirby-trash.remaining', $remaining),

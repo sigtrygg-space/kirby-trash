@@ -63,10 +63,14 @@ git submodule add https://github.com/sigtrygg-space/kirby-trash.git site/plugins
 ## Panel
 
 The plugin adds a **Trash** area to the Panel menu (trash icon). It lists
-all trashed items with their original path, size, deletion date and the
-remaining days until automatic cleanup. Each item can be restored or
-deleted permanently; the header button empties the whole trash (with a
+all trashed items in a table with their original path, size, deletion date
+and the remaining days until automatic cleanup. Each item can be restored
+or deleted permanently; the header button empties the whole trash (with a
 confirmation dialog showing the number of items and total size).
+
+On small screens the table is reduced to the most important columns; the
+options menu of every row therefore also offers a details dialog with all
+metadata (original path, size, deletion date, deleting user, time left).
 
 ## Options
 
@@ -79,11 +83,14 @@ return [
     // can never wipe the trash instantly.
     'sigtrygg-space.kirby-trash.retentionDays' => 30,
 
-    // where trashed items are stored.
+    // where trashed items are stored (string or closure).
     // default: site/storage/trash
     'sigtrygg-space.kirby-trash.root' => null,
 
-    // disable the trash entirely (deletions become permanent again)
+    // disable the trash entirely: deletions become permanent
+    // again and the Panel area disappears. Also accepts a
+    // closure for logic-driven switching, e.g. by environment:
+    // 'enabled' => fn ($kirby) => $kirby->system()->isLocal() === false
     'sigtrygg-space.kirby-trash.enabled' => true,
 ];
 ```

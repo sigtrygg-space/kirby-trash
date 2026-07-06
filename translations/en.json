@@ -5,6 +5,8 @@
     "sigtrygg-space.kirby-trash.restore": "Restore",
     "sigtrygg-space.kirby-trash.delete": "Delete permanently",
     "sigtrygg-space.kirby-trash.emptyTrash": "Empty trash",
+    "sigtrygg-space.kirby-trash.details": "Details",
+    "sigtrygg-space.kirby-trash.deletedBy": "Deleted by",
     "sigtrygg-space.kirby-trash.column.title": "Title",
     "sigtrygg-space.kirby-trash.column.path": "Original path",
     "sigtrygg-space.kirby-trash.column.size": "Size",
@@ -22,5 +24,6 @@
     "error.sigtrygg-space.kirby-trash.notFound": "The trash item could not be found",
     "error.sigtrygg-space.kirby-trash.missingParent": "The original parent page \"{parent}\" does not exist anymore",
     "error.sigtrygg-space.kirby-trash.exists": "The restore target already exists",
-    "error.sigtrygg-space.kirby-trash.permission": "You are not allowed to do this"
+    "error.sigtrygg-space.kirby-trash.permission": "You are not allowed to do this",
+    "error.sigtrygg-space.kirby-trash.disabled": "The trash is disabled"
 }

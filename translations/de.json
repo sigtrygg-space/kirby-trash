@@ -5,6 +5,8 @@
     "sigtrygg-space.kirby-trash.restore": "Wiederherstellen",
     "sigtrygg-space.kirby-trash.delete": "Endgültig löschen",
     "sigtrygg-space.kirby-trash.emptyTrash": "Papierkorb leeren",
+    "sigtrygg-space.kirby-trash.details": "Details",
+    "sigtrygg-space.kirby-trash.deletedBy": "Gelöscht von",
     "sigtrygg-space.kirby-trash.column.title": "Titel",
     "sigtrygg-space.kirby-trash.column.path": "Ursprünglicher Pfad",
     "sigtrygg-space.kirby-trash.column.size": "Größe",
@@ -22,5 +24,6 @@
     "error.sigtrygg-space.kirby-trash.notFound": "Der Papierkorb-Eintrag wurde nicht gefunden",
     "error.sigtrygg-space.kirby-trash.missingParent": "Die ursprüngliche Elternseite \"{parent}\" existiert nicht mehr",
     "error.sigtrygg-space.kirby-trash.exists": "Das Wiederherstellungsziel existiert bereits",
-    "error.sigtrygg-space.kirby-trash.permission": "Dazu hast du keine Berechtigung"
+    "error.sigtrygg-space.kirby-trash.permission": "Dazu hast du keine Berechtigung",
+    "error.sigtrygg-space.kirby-trash.disabled": "Der Papierkorb ist deaktiviert"
 }
