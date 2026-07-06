@@ -120,7 +120,7 @@ App::plugin('sigtrygg-space/kirby-trash', [
 			return [
 				'label' => I18n::translate('sigtrygg-space.kirby-trash.title', 'Trash'),
 				'icon'  => 'trash',
-				'menu'  => $trash->can('access'),
+				'menu'  => $trash->enabled() === true && $trash->can('access'),
 				'link'  => 'trash',
 				'views' => [
 					[

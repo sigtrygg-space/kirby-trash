@@ -40,6 +40,12 @@ panel.plugin("sigtrygg-space/kirby-trash", {
             ...item,
             options: [
               {
+                icon: "info",
+                text: this.$t("sigtrygg-space.kirby-trash.details"),
+                click: "details"
+              },
+              "-",
+              {
                 icon: "undo",
                 text: this.$t("sigtrygg-space.kirby-trash.restore"),
                 click: "restore",
@@ -58,6 +64,10 @@ panel.plugin("sigtrygg-space/kirby-trash", {
       },
       methods: {
         onOption(option, item) {
+          if (option === "details") {
+            return this.details(item);
+          }
+
           if (option === "restore") {
             return this.restore(item);
           }
@@ -65,6 +75,26 @@ panel.plugin("sigtrygg-space/kirby-trash", {
           if (option === "delete") {
             return this.remove(item);
           }
+        },
+        details(item) {
+          const t = (key) => this.$t("sigtrygg-space.kirby-trash." + key);
+
+          this.$panel.dialog.open({
+            component: "k-trash-details-dialog",
+            props: {
+              fields: [
+                { label: t("column.title"), value: item.title },
+                { label: t("column.path"), value: item.path },
+                { label: t("column.size"), value: item.size },
+                { label: t("column.deleted"), value: item.deletedAt },
+                { label: t("deletedBy"), value: item.deletedBy },
+                { label: t("column.remaining"), value: item.remaining }
+              ].filter((field) => field.value)
+            },
+            on: {
+              submit: () => this.$panel.dialog.close()
+            }
+          });
         },
         restore(item) {
           this.$panel.dialog.open({
@@ -160,6 +190,35 @@ panel.plugin("sigtrygg-space/kirby-trash", {
             {{ $t("sigtrygg-space.kirby-trash.empty") }}
           </k-empty>
         </k-panel-inside>
+      `
+    },
+    "k-trash-details-dialog": {
+      props: {
+        fields: {
+          type: Array,
+          default: () => []
+        }
+      },
+      computed: {
+        submitButton() {
+          return { text: this.$t("close") };
+        }
+      },
+      template: `
+        <k-dialog
+          class="k-trash-details-dialog"
+          :cancel-button="false"
+          :submit-button="submitButton"
+          @cancel="$emit('cancel')"
+          @submit="$emit('submit')"
+        >
+          <dl>
+            <div v-for="field in fields" :key="field.label">
+              <dt>{{ field.label }}</dt>
+              <dd>{{ field.value }}</dd>
+            </div>
+          </dl>
+        </k-dialog>
       `
     }
   }

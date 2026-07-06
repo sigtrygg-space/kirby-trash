@@ -217,7 +217,6 @@ final class TrashTest extends TestCase
 		$this->assertSame('1 day left', $this->trash()->panelItems()[0]['remaining']);
 
 		// retention disabled: kept forever
-		App::destroy();
 		$this->kirby = $this->app([
 			'sigtrygg-space.kirby-trash.retentionDays' => -1,
 		]);
@@ -420,6 +419,37 @@ final class TrashTest extends TestCase
 		$this->createPage('test')->delete();
 
 		$this->assertCount(0, $this->trash()->items());
+	}
+
+	public function testDisabledPluginRefusesPanelAccess(): void
+	{
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.enabled' => false,
+		]);
+
+		try {
+			$this->trash()->ensure('access');
+			$this->fail('access to a disabled trash must be refused');
+		} catch (Throwable $e) {
+			$this->assertSame('The trash is disabled', $e->getMessage());
+		}
+	}
+
+	public function testEnabledOptionAcceptsClosure(): void
+	{
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.enabled' => fn (App $kirby) => false,
+		]);
+
+		$this->createPage('test')->delete();
+		$this->assertCount(0, $this->trash()->items());
+
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.enabled' => fn (App $kirby) => $kirby instanceof App,
+		]);
+
+		$this->createPage('test')->delete();
+		$this->assertCount(1, $this->trash()->items());
 	}
 
 	public function testAdminWithCustomBlueprintKeepsAccess(): void

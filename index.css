@@ -1,0 +1,15 @@
+.k-trash-details-dialog dl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.k-trash-details-dialog dt {
+  font-size: var(--text-xs);
+  color: var(--color-text-dimmed);
+  margin-bottom: var(--spacing-1);
+}
+
+.k-trash-details-dialog dd {
+  overflow-wrap: anywhere;
+}
