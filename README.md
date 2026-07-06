@@ -4,6 +4,8 @@ A proper trash bin for [Kirby CMS](https://getkirby.com): deleted pages and
 files are not removed instantly but moved to a trash where they can be
 restored or deleted permanently — via a dedicated Panel area.
 
+![The trash area in the Kirby Panel](.github/screenshot.png)
+
 ## How it works
 
 Kirby fires `page.delete:before` / `file.delete:before` hooks while the
@@ -71,6 +73,8 @@ confirmation dialog showing the number of items and total size).
 On small screens the table is reduced to the most important columns; the
 options menu of every row therefore also offers a details dialog with all
 metadata (original path, size, deletion date, deleting user, time left).
+
+![The options menu of a trash item](.github/screenshot-dialog.png)
 
 ## Options
 
