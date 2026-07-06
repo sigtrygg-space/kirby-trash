@@ -36,22 +36,6 @@ and internal links keep working.
 composer require sigtrygg-space/kirby-trash
 ```
 
-> **Note:** this works once the plugin is published on Packagist. Until
-> then, add the repository to your site's `composer.json` and require the
-> development version:
->
-> ```json
-> {
->     "repositories": [
->         { "type": "vcs", "url": "https://github.com/sigtrygg-space/kirby-trash" }
->     ]
-> }
-> ```
->
-> ```
-> composer require sigtrygg-space/kirby-trash:dev-main
-> ```
-
 ### Manual download
 
 Download and extract this repository to `site/plugins/kirby-trash`.
