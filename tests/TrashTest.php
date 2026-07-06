@@ -165,6 +165,32 @@ final class TrashTest extends TestCase
 		$this->assertNotNull($restored->childrenAndDrafts()->find('child'));
 	}
 
+	public function testCoversNormalizesMixedPathSeparators(): void
+	{
+		// on Windows, Kirby reports roots with mixed separators within
+		// one request (`C:\...\content/1_a` vs. `C:\...\content\1_a`);
+		// the guard has to match them regardless. String fixtures stand
+		// in for real Windows paths, so this also runs on Linux CI.
+		$trash = new class ($this->kirby) extends Trash {
+			public function guardForTest(string $root): void
+			{
+				$this->guard($root);
+			}
+		};
+
+		$trash->guardForTest('C:\\sites\\demo\\content/1_photography');
+
+		$this->assertTrue($trash->covers('C:\\sites\\demo\\content\\1_photography'));
+		$this->assertTrue($trash->covers('C:\\sites\\demo\\content\\1_photography/1_trees'));
+		$this->assertTrue($trash->covers('C:/sites/demo/content/1_photography/2_sky'));
+		$this->assertFalse($trash->covers('C:\\sites\\demo\\content\\2_notes'));
+		$this->assertFalse($trash->covers('C:/sites/demo/content/10_photography-archive'));
+
+		$trash->release('C:/sites/demo/content/1_photography');
+
+		$this->assertFalse($trash->covers('C:\\sites\\demo\\content\\1_photography'));
+	}
+
 	public function testRestoreFileWithCompanionContentFiles(): void
 	{
 		$page = $this->createPage('gallery');

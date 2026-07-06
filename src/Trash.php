@@ -116,7 +116,7 @@ class Trash
 	 */
 	protected function guard(string $root): void
 	{
-		$this->active[] = $root;
+		$this->active[] = $this->normalizeRoot($root);
 	}
 
 	/**
@@ -125,6 +125,8 @@ class Trash
 	 */
 	public function covers(string $root): bool
 	{
+		$root = $this->normalizeRoot($root);
+
 		foreach ($this->active as $active) {
 			if ($root === $active || str_starts_with($root, $active . '/') === true) {
 				return true;
@@ -136,9 +138,22 @@ class Trash
 
 	public function release(string $root): void
 	{
+		$root = $this->normalizeRoot($root);
+
 		$this->active = array_values(
 			array_filter($this->active, fn (string $active) => $active !== $root)
 		);
+	}
+
+	/**
+	 * Kirby composes roots with `/` but path segments coming from
+	 * PHP (realpath, dirname, …) use `\` on Windows, so the same
+	 * page can be reported with mixed separators within one request.
+	 * All guard comparisons therefore work on normalized paths.
+	 */
+	protected function normalizeRoot(string $root): string
+	{
+		return str_replace('\\', '/', $root);
 	}
 
 	/**

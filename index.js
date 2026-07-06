@@ -19,14 +19,14 @@ panel.plugin("sigtrygg-space/kirby-trash", {
               {
                 icon: "undo",
                 text: this.$t("sigtrygg-space.kirby-trash.restore"),
-                option: "restore",
+                click: "restore",
                 disabled: !this.canRestore
               },
               "-",
               {
                 icon: "trash",
                 text: this.$t("sigtrygg-space.kirby-trash.delete"),
-                option: "delete",
+                click: "delete",
                 disabled: !this.canDelete
               }
             ]
