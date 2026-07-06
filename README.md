@@ -74,7 +74,7 @@ On small screens the table is reduced to the most important columns; the
 options menu of every row therefore also offers a details dialog with all
 metadata (original path, size, deletion date, deleting user, time left).
 
-![The options menu of a trash item](.github/screenshot-dialog.png)
+![The details dialog of a trash item](.github/screenshot-details.png)
 
 ## Options
 

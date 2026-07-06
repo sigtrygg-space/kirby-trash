@@ -197,6 +197,14 @@ panel.plugin("sigtrygg-space/kirby-trash", {
         fields: {
           type: Array,
           default: () => []
+        },
+        // passed by the panel's dialog island; must be forwarded to
+        // k-dialog explicitly — Vue 2 attribute fallthrough only sets
+        // it as a DOM attribute, not as the k-dialog prop, and without
+        // it k-dialog never teleports into the dialog portal
+        visible: {
+          type: Boolean,
+          default: false
         }
       },
       computed: {
@@ -209,6 +217,7 @@ panel.plugin("sigtrygg-space/kirby-trash", {
           class="k-trash-details-dialog"
           :cancel-button="false"
           :submit-button="submitButton"
+          :visible="visible"
           @cancel="$emit('cancel')"
           @submit="$emit('submit')"
         >
