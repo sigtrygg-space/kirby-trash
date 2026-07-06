@@ -1,6 +1,6 @@
 # Kirby Trash
 
-A proper trash bin for [Kirby CMS](https://getkirby.com): deleted pages and
+A proper trash can for [Kirby CMS](https://getkirby.com): deleted pages and
 files are not removed instantly but moved to a trash where they can be
 restored or deleted permanently — via a dedicated Panel area.
 
