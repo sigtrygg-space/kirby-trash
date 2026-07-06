@@ -116,7 +116,7 @@ class Trash
 	 */
 	protected function guard(string $root): void
 	{
-		$this->active[] = $root;
+		$this->active[] = $this->normalizeRoot($root);
 	}
 
 	/**
@@ -125,6 +125,8 @@ class Trash
 	 */
 	public function covers(string $root): bool
 	{
+		$root = $this->normalizeRoot($root);
+
 		foreach ($this->active as $active) {
 			if ($root === $active || str_starts_with($root, $active . '/') === true) {
 				return true;
@@ -136,9 +138,22 @@ class Trash
 
 	public function release(string $root): void
 	{
+		$root = $this->normalizeRoot($root);
+
 		$this->active = array_values(
 			array_filter($this->active, fn (string $active) => $active !== $root)
 		);
+	}
+
+	/**
+	 * Kirby composes roots with `/` but path segments coming from
+	 * PHP (realpath, dirname, …) use `\` on Windows, so the same
+	 * page can be reported with mixed separators within one request.
+	 * All guard comparisons therefore work on normalized paths.
+	 */
+	protected function normalizeRoot(string $root): string
+	{
+		return str_replace('\\', '/', $root);
 	}
 
 	/**
@@ -465,12 +480,13 @@ class Trash
 	}
 
 	/**
-	 * Items prepared for the Panel view (k-collection format)
+	 * Items prepared for the Panel view: one table row per item,
+	 * keyed by the column ids of the view's table layout
 	 */
 	public function panelItems(): array
 	{
-		$days  = $this->retentionDays();
-		$items = [];
+		$days = $this->retentionDays();
+		$rows = [];
 
 		foreach ($this->items() as $meta) {
 			$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
@@ -480,42 +496,19 @@ class Trash
 				$remaining = max(0, (int)ceil(($deletedAt + $days * 86400 - time()) / 86400));
 			}
 
-			$info = [
-				$meta['id'] ?? '',
-				F::niceSize((int)($meta['size'] ?? 0)),
-				$deletedAt !== null ? date('Y-m-d H:i', $deletedAt) : null,
-				$remaining !== null
-					? I18n::template('sigtrygg-space.kirby-trash.info.remaining', null, ['days' => $remaining])
-					: null,
-			];
-
-			$items[] = [
-				'trashId' => $meta['trashId'],
-				'text'    => $meta['title'] ?? $meta['id'] ?? $meta['trashId'],
-				'info'    => implode(' · ', array_filter($info)),
-				'image'   => [
-					'icon' => $this->icon($meta),
-					'back' => 'black',
-				],
+			$rows[] = [
+				'trashId'   => $meta['trashId'],
+				'title'     => $meta['title'] ?? $meta['id'] ?? $meta['trashId'],
+				'path'      => $meta['id'] ?? '',
+				'size'      => F::niceSize((int)($meta['size'] ?? 0)),
+				'deletedAt' => $deletedAt !== null ? date('Y-m-d H:i', $deletedAt) : '',
+				'remaining' => $remaining === null
+					? I18n::translate('sigtrygg-space.kirby-trash.remaining.forever', 'Kept forever')
+					: I18n::translateCount('sigtrygg-space.kirby-trash.remaining', $remaining),
 			];
 		}
 
-		return $items;
-	}
-
-	protected function icon(array $meta): string
-	{
-		if (($meta['type'] ?? null) === 'page') {
-			return 'page';
-		}
-
-		return match (F::type($meta['relativePath'] ?? '')) {
-			'image'    => 'image',
-			'video'    => 'video',
-			'audio'    => 'audio',
-			'document' => 'document',
-			default    => 'file',
-		};
+		return $rows;
 	}
 
 	protected function notFound(): NotFoundException

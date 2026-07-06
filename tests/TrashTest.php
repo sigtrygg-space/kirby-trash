@@ -165,6 +165,65 @@ final class TrashTest extends TestCase
 		$this->assertNotNull($restored->childrenAndDrafts()->find('child'));
 	}
 
+	public function testCoversNormalizesMixedPathSeparators(): void
+	{
+		// on Windows, Kirby reports roots with mixed separators within
+		// one request (`C:\...\content/1_a` vs. `C:\...\content\1_a`);
+		// the guard has to match them regardless. String fixtures stand
+		// in for real Windows paths, so this also runs on Linux CI.
+		$trash = new class ($this->kirby) extends Trash {
+			public function guardForTest(string $root): void
+			{
+				$this->guard($root);
+			}
+		};
+
+		$trash->guardForTest('C:\\sites\\demo\\content/1_photography');
+
+		$this->assertTrue($trash->covers('C:\\sites\\demo\\content\\1_photography'));
+		$this->assertTrue($trash->covers('C:\\sites\\demo\\content\\1_photography/1_trees'));
+		$this->assertTrue($trash->covers('C:/sites/demo/content/1_photography/2_sky'));
+		$this->assertFalse($trash->covers('C:\\sites\\demo\\content\\2_notes'));
+		$this->assertFalse($trash->covers('C:/sites/demo/content/10_photography-archive'));
+
+		$trash->release('C:/sites/demo/content/1_photography');
+
+		$this->assertFalse($trash->covers('C:\\sites\\demo\\content\\1_photography'));
+	}
+
+	public function testPanelItemsProvideTableRows(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$rows = $this->trash()->panelItems();
+
+		$this->assertCount(1, $rows);
+		$this->assertSame('Note', $rows[0]['title']);
+		$this->assertSame('note', $rows[0]['path']);
+		$this->assertSame('30 days left', $rows[0]['remaining']);
+		$this->assertNotEmpty($rows[0]['size']);
+		$this->assertNotEmpty($rows[0]['deletedAt']);
+		$this->assertArrayHasKey('trashId', $rows[0]);
+	}
+
+	public function testPanelItemsPluralizeRemainingDays(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		// one day left: deleted (retention - 1) days ago
+		$this->backdateItem('note', 29);
+		$this->assertSame('1 day left', $this->trash()->panelItems()[0]['remaining']);
+
+		// retention disabled: kept forever
+		App::destroy();
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.retentionDays' => -1,
+		]);
+		$this->assertSame('Kept forever', $this->trash()->panelItems()[0]['remaining']);
+	}
+
 	public function testRestoreFileWithCompanionContentFiles(): void
 	{
 		$page = $this->createPage('gallery');

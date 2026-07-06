@@ -11,22 +11,45 @@ panel.plugin("sigtrygg-space/kirby-trash", {
         totalSize: String
       },
       computed: {
-        collectionItems() {
+        columns() {
+          return {
+            title: {
+              label: this.$t("sigtrygg-space.kirby-trash.column.title"),
+              mobile: true
+            },
+            path: {
+              label: this.$t("sigtrygg-space.kirby-trash.column.path")
+            },
+            size: {
+              label: this.$t("sigtrygg-space.kirby-trash.column.size"),
+              width: "7rem"
+            },
+            deletedAt: {
+              label: this.$t("sigtrygg-space.kirby-trash.column.deleted"),
+              width: "10rem"
+            },
+            remaining: {
+              label: this.$t("sigtrygg-space.kirby-trash.column.remaining"),
+              width: "10rem",
+              mobile: true
+            }
+          };
+        },
+        rows() {
           return this.items.map((item) => ({
             ...item,
-            link: false,
             options: [
               {
                 icon: "undo",
                 text: this.$t("sigtrygg-space.kirby-trash.restore"),
-                option: "restore",
+                click: "restore",
                 disabled: !this.canRestore
               },
               "-",
               {
                 icon: "trash",
                 text: this.$t("sigtrygg-space.kirby-trash.delete"),
-                option: "delete",
+                click: "delete",
                 disabled: !this.canDelete
               }
             ]
@@ -48,7 +71,7 @@ panel.plugin("sigtrygg-space/kirby-trash", {
             component: "k-text-dialog",
             props: {
               text: this.$t("sigtrygg-space.kirby-trash.dialog.restore", {
-                title: item.text
+                title: item.title
               }),
               submitButton: {
                 icon: "undo",
@@ -66,7 +89,7 @@ panel.plugin("sigtrygg-space/kirby-trash", {
             component: "k-remove-dialog",
             props: {
               text: this.$t("sigtrygg-space.kirby-trash.dialog.delete", {
-                title: item.text
+                title: item.title
               })
             },
             on: {
@@ -75,13 +98,16 @@ panel.plugin("sigtrygg-space/kirby-trash", {
           });
         },
         emptyTrash() {
+          const count = this.items.length;
+
           this.$panel.dialog.open({
             component: "k-remove-dialog",
             props: {
-              text: this.$t("sigtrygg-space.kirby-trash.dialog.empty", {
-                count: this.items.length,
-                size: this.totalSize
-              }),
+              text: this.$t(
+                "sigtrygg-space.kirby-trash.dialog.empty." +
+                  (count === 1 ? "one" : "many"),
+                { count, size: this.totalSize }
+              ),
               submitButton: {
                 icon: "trash",
                 text: this.$t("sigtrygg-space.kirby-trash.emptyTrash")
@@ -124,7 +150,10 @@ panel.plugin("sigtrygg-space/kirby-trash", {
           </k-header>
           <k-collection
             v-if="items.length > 0"
-            :items="collectionItems"
+            layout="table"
+            :columns="columns"
+            :items="rows"
+            :help="$t('sigtrygg-space.kirby-trash.help')"
             @option="onOption"
           />
           <k-empty v-else icon="trash">
