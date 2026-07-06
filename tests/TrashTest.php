@@ -237,7 +237,6 @@ final class TrashTest extends TestCase
 		$this->assertSame('k-trash-details-dialog', $details['component']);
 		$this->assertSame($item['trashId'], $details['props']['trashId']);
 		$this->assertContains('Original path', array_column($details['props']['fields'], 'label'));
-		$this->assertTrue($dialogs['trash.details']['submit']());
 
 		// restore: confirmation text with the title, submit restores
 		$restore = $dialogs['trash.restore']['load']($item['trashId']);

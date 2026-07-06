@@ -6,34 +6,18 @@ panel.plugin("sigtrygg-space/kirby-trash", {
           type: Array,
           default: () => []
         },
+        columns: {
+          type: Object,
+          default: () => ({})
+        },
         canRestore: Boolean,
         canDelete: Boolean
       },
       computed: {
-        columns() {
-          return {
-            title: {
-              label: this.$t("sigtrygg-space.kirby-trash.column.title"),
-              mobile: true
-            },
-            path: {
-              label: this.$t("sigtrygg-space.kirby-trash.column.path")
-            },
-            size: {
-              label: this.$t("sigtrygg-space.kirby-trash.column.size"),
-              width: "7rem"
-            },
-            deletedAt: {
-              label: this.$t("sigtrygg-space.kirby-trash.column.deleted"),
-              width: "10rem"
-            },
-            remaining: {
-              label: this.$t("sigtrygg-space.kirby-trash.column.remaining"),
-              width: "10rem",
-              mobile: true
-            }
-          };
-        },
+        // all dialogs are defined in the plugin's PHP backend and
+        // opened via k-button's native `dialog` prop; submitting
+        // runs through the Panel's dialog pipeline (loading
+        // spinner, disabled buttons, view reload)
         rows() {
           return this.items.map((item) => ({
             ...item,
@@ -41,35 +25,24 @@ panel.plugin("sigtrygg-space/kirby-trash", {
               {
                 icon: "info",
                 text: this.$t("sigtrygg-space.kirby-trash.details"),
-                click: "details"
+                dialog: "trash/" + item.trashId + "/details"
               },
               "-",
               {
                 icon: "undo",
                 text: this.$t("sigtrygg-space.kirby-trash.restore"),
-                click: "restore",
+                dialog: "trash/" + item.trashId + "/restore",
                 disabled: !this.canRestore
               },
               "-",
               {
                 icon: "trash",
                 text: this.$t("sigtrygg-space.kirby-trash.delete"),
-                click: "delete",
+                dialog: "trash/" + item.trashId + "/delete",
                 disabled: !this.canDelete
               }
             ]
           }));
-        }
-      },
-      methods: {
-        // all dialogs are defined in the plugin's PHP backend;
-        // submitting runs through the Panel's dialog pipeline
-        // (loading spinner, disabled buttons, view reload)
-        onOption(option, item) {
-          this.$panel.dialog.open("trash/" + item.trashId + "/" + option);
-        },
-        emptyTrash() {
-          this.$panel.dialog.open("trash/empty");
         }
       },
       template: `
@@ -83,7 +56,7 @@ panel.plugin("sigtrygg-space/kirby-trash", {
                 variant="filled"
                 theme="negative"
                 size="sm"
-                @click="emptyTrash"
+                dialog="trash/empty"
               >
                 {{ $t("sigtrygg-space.kirby-trash.emptyTrash") }}
               </k-button>
@@ -95,7 +68,6 @@ panel.plugin("sigtrygg-space/kirby-trash", {
             :columns="columns"
             :items="rows"
             :help="$t('sigtrygg-space.kirby-trash.help')"
-            @option="onOption"
           />
           <k-empty v-else icon="trash">
             {{ $t("sigtrygg-space.kirby-trash.empty") }}
@@ -126,16 +98,6 @@ panel.plugin("sigtrygg-space/kirby-trash", {
           return { text: this.$t("close") };
         }
       },
-      methods: {
-        // hands over to the backend confirmation dialogs,
-        // replacing this dialog
-        restore() {
-          this.$panel.dialog.open("trash/" + this.trashId + "/restore");
-        },
-        remove() {
-          this.$panel.dialog.open("trash/" + this.trashId + "/delete");
-        }
-      },
       template: `
         <k-dialog
           class="k-trash-details-dialog"
@@ -143,7 +105,7 @@ panel.plugin("sigtrygg-space/kirby-trash", {
           :submit-button="submitButton"
           :visible="visible"
           @cancel="$emit('cancel')"
-          @submit="$emit('submit')"
+          @submit="$panel.dialog.close()"
         >
           <dl>
             <div v-for="field in fields" :key="field.label">
@@ -158,9 +120,8 @@ panel.plugin("sigtrygg-space/kirby-trash", {
             <k-button
               icon="undo"
               variant="filled"
-              size="sm"
               :disabled="!canRestore"
-              @click="restore"
+              :dialog="'trash/' + trashId + '/restore'"
             >
               {{ $t("sigtrygg-space.kirby-trash.restore") }}
             </k-button>
@@ -168,9 +129,8 @@ panel.plugin("sigtrygg-space/kirby-trash", {
               icon="trash"
               variant="filled"
               theme="negative"
-              size="sm"
               :disabled="!canDelete"
-              @click="remove"
+              :dialog="'trash/' + trashId + '/delete'"
             >
               {{ $t("sigtrygg-space.kirby-trash.delete") }}
             </k-button>

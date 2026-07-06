@@ -117,7 +117,7 @@ versions are migrated on read — trash contents survive plugin upgrades.
 
 ### Automatic cleanup
 
-Expired items are removed whenever the trash area or its API is opened.
+Expired items are removed whenever the trash area is opened.
 Kirby has no native cron; if you want guaranteed cleanup on quiet sites,
 run the bundled CLI command (requires [getkirby/cli](https://github.com/getkirby/cli))
 as a cronjob:

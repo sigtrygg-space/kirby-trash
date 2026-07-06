@@ -504,12 +504,48 @@ class Trash
 	}
 
 	/**
+	 * Column definitions for the Panel table, keyed by the row
+	 * fields of panelRow(); the details dialog derives its field
+	 * labels from the same map
+	 */
+	public function panelColumns(): array
+	{
+		return [
+			'title' => [
+				'label'  => I18n::translate('sigtrygg-space.kirby-trash.column.title'),
+				'mobile' => true,
+			],
+			'path' => [
+				'label' => I18n::translate('sigtrygg-space.kirby-trash.column.path'),
+			],
+			'size' => [
+				'label' => I18n::translate('sigtrygg-space.kirby-trash.column.size'),
+				'width' => '7rem',
+			],
+			'deletedAt' => [
+				'label' => I18n::translate('sigtrygg-space.kirby-trash.column.deleted'),
+				'width' => '10rem',
+			],
+			'remaining' => [
+				'label'  => I18n::translate('sigtrygg-space.kirby-trash.column.remaining'),
+				'width'  => '10rem',
+				'mobile' => true,
+			],
+		];
+	}
+
+	/**
 	 * Items prepared for the Panel view: one table row per item,
 	 * keyed by the column ids of the view's table layout
 	 */
 	public function panelItems(): array
 	{
-		return array_map($this->panelRow(...), $this->items());
+		$days = $this->retentionDays();
+
+		return array_map(
+			fn (array $meta) => $this->panelRow($meta, $days),
+			$this->items()
+		);
 	}
 
 	/**
@@ -518,12 +554,11 @@ class Trash
 	 */
 	public function panelItem(string $id): array
 	{
-		return $this->panelRow($this->item($id));
+		return $this->panelRow($this->item($id), $this->retentionDays());
 	}
 
-	protected function panelRow(array $meta): array
+	protected function panelRow(array $meta, int|null $days): array
 	{
-		$days      = $this->retentionDays();
 		$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
 		$remaining = null;
 

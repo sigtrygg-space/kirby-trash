@@ -16,7 +16,7 @@ Initial release.
   dialog pipeline: while restore / delete / empty is running, the submit
   button is disabled and shows a loading spinner
 - `enabled` and `root` options accept closures for logic-driven switching;
-  a disabled trash also hides its Panel area and refuses its API
+  a disabled trash also hides its Panel area and refuses its dialogs
 - Automatic cleanup with configurable retention (`retentionDays`,
   default 30, `-1` = keep forever)
 - `kirby trash:cleanup` CLI command for cronjobs
