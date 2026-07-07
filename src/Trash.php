@@ -594,7 +594,7 @@ class Trash
 
 		$now    = time();
 		$cache  = $this->kirby->cache('sigtrygg-space.kirby-trash');
-		$key    = (filemtime($root) ?: 0) . ':' . $this->count();
+		$key    = $root . ':' . (filemtime($root) ?: 0) . ':' . $this->count();
 		$cached = $cache->get('expiryStats');
 
 		if (
@@ -754,8 +754,11 @@ class Trash
 			'remaining' => $remaining === null
 				? I18n::translate('sigtrygg-space.kirby-trash.remaining.forever', 'Kept forever')
 				: I18n::translateCount('sigtrygg-space.kirby-trash.remaining', $remaining),
-			// drives the warn styling of the remaining cell
-			'expiresSoon' => $remaining !== null && $warnDays > 0 && $remaining <= $warnDays,
+			// drives the warn styling of the remaining cell;
+			// `remaining` 0 means already expired — those neither
+			// warn nor count, the next cleanup removes them
+			'expiresSoon' => $remaining !== null && $remaining > 0
+				&& $warnDays > 0 && $remaining <= $warnDays,
 		];
 	}
 

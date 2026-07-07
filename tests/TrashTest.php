@@ -301,6 +301,10 @@ final class TrashTest extends TestCase
 		$this->assertSame(1, $trash->badge()['text']);
 		$this->assertSame('notice', $trash->badge()['theme']);
 
+		// the expired row itself does not warn either
+		$rows = array_column($trash->panelItems(), null, 'path');
+		$this->assertFalse($rows['note']['expiresSoon']);
+
 		// both expired: no future expiry, the badge disappears
 		$this->backdateItem('other', 40);
 		$this->assertNull($this->trash()->nextExpiry());

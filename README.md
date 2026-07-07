@@ -95,6 +95,10 @@ return [
     // 0 disables the warn state
     'sigtrygg-space.kirby-trash.warnDays' => 5,
     'sigtrygg-space.kirby-trash.warnTheme' => 'warning',
+
+    // the badge's expiry lookup is cached persistently
+    // (site/cache); set to false to disable the plugin cache
+    'sigtrygg-space.kirby-trash.cache' => true,
 ];
 ```
 
