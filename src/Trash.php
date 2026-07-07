@@ -287,12 +287,14 @@ class Trash
 	}
 
 	/**
-	 * Discards the request-scoped item cache; must be called by
-	 * anything that modifies the trash storage directly on disk
+	 * Discards the request-scoped item cache and the persistent
+	 * plugin cache; must be called by anything that modifies the
+	 * trash storage directly on disk
 	 */
 	public function flushIndex(): void
 	{
 		$this->index = null;
+		$this->kirby->cache('sigtrygg-space.kirby-trash')->flush();
 	}
 
 	/**
@@ -488,6 +490,8 @@ class Trash
 	 * null when the badge is disabled or the trash is empty.
 	 * The option accepts `true`, `false` or an array with a `theme`
 	 * key — any Panel theme, e.g. `passive` for a more subtle look.
+	 * When an item expires within the warn threshold, the badge
+	 * switches to the warn theme.
 	 */
 	public function badge(): array|null
 	{
@@ -504,9 +508,83 @@ class Trash
 		}
 
 		return [
-			'theme' => (is_array($option) === true ? $option['theme'] ?? null : null) ?? 'notice',
+			'theme' => $this->expiresSoon() === true
+				? $this->warnTheme()
+				: ((is_array($option) === true ? $option['theme'] ?? null : null) ?? 'notice'),
 			'text'  => $count,
 		];
+	}
+
+	/**
+	 * Items expiring within this many days are highlighted in the
+	 * table and escalate the menu badge; 0 disables the warn state
+	 */
+	public function warnDays(): int
+	{
+		$days = $this->kirby->option('sigtrygg-space.kirby-trash.warnDays', 3);
+
+		return is_numeric($days) === true ? max(0, (int)$days) : 0;
+	}
+
+	public function warnTheme(): string
+	{
+		return $this->kirby->option('sigtrygg-space.kirby-trash.warnTheme', 'negative');
+	}
+
+	/**
+	 * Whether any item expires within the warn threshold
+	 */
+	public function expiresSoon(): bool
+	{
+		$warnDays = $this->warnDays();
+
+		if ($warnDays === 0) {
+			return false;
+		}
+
+		$expiry = $this->nextExpiry();
+
+		return $expiry !== null && $expiry <= time() + $warnDays * 86400;
+	}
+
+	/**
+	 * Timestamp at which the next item expires, or null when nothing
+	 * does (empty trash or retention disabled). The Panel menu needs
+	 * this on every request, so the value is cached persistently and
+	 * keyed on the trash root's mtime and item count — every meta.json
+	 * is only parsed when the trash actually changed.
+	 */
+	public function nextExpiry(): int|null
+	{
+		$days = $this->retentionDays();
+		$root = $this->root();
+
+		if ($days === null || is_dir($root) === false) {
+			return null;
+		}
+
+		$cache  = $this->kirby->cache('sigtrygg-space.kirby-trash');
+		$key    = (filemtime($root) ?: 0) . ':' . $this->count();
+		$cached = $cache->get('nextExpiry');
+
+		if (is_array($cached) === true && ($cached['key'] ?? null) === $key) {
+			return $cached['expiry'];
+		}
+
+		$earliest = null;
+
+		foreach ($this->items() as $item) {
+			$deletedAt = strtotime($item['deletedAt'] ?? '') ?: null;
+
+			if ($deletedAt !== null) {
+				$expiry   = $deletedAt + $days * 86400;
+				$earliest = min($earliest ?? $expiry, $expiry);
+			}
+		}
+
+		$cache->set('nextExpiry', ['key' => $key, 'expiry' => $earliest]);
+
+		return $earliest;
 	}
 
 	/**
@@ -581,6 +659,10 @@ class Trash
 				'label'  => I18n::translate('sigtrygg-space.kirby-trash.column.remaining'),
 				'width'  => '10rem',
 				'mobile' => true,
+				// rendered by the plugin's k-table-remaining-cell,
+				// which applies the warn theme to expiring rows
+				'type'      => 'remaining',
+				'warnTheme' => $this->warnTheme(),
 			],
 		];
 	}
@@ -591,10 +673,11 @@ class Trash
 	 */
 	public function panelItems(): array
 	{
-		$days = $this->retentionDays();
+		$days     = $this->retentionDays();
+		$warnDays = $this->warnDays();
 
 		return array_map(
-			fn (array $meta) => $this->panelRow($meta, $days),
+			fn (array $meta) => $this->panelRow($meta, $days, $warnDays),
 			$this->items()
 		);
 	}
@@ -605,10 +688,10 @@ class Trash
 	 */
 	public function panelItem(string $id): array
 	{
-		return $this->panelRow($this->item($id), $this->retentionDays());
+		return $this->panelRow($this->item($id), $this->retentionDays(), $this->warnDays());
 	}
 
-	protected function panelRow(array $meta, int|null $days): array
+	protected function panelRow(array $meta, int|null $days, int $warnDays): array
 	{
 		$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
 		$remaining = null;
@@ -628,6 +711,8 @@ class Trash
 			'remaining' => $remaining === null
 				? I18n::translate('sigtrygg-space.kirby-trash.remaining.forever', 'Kept forever')
 				: I18n::translateCount('sigtrygg-space.kirby-trash.remaining', $remaining),
+			// drives the warn styling of the remaining cell
+			'expiresSoon' => $remaining !== null && $warnDays > 0 && $remaining <= $warnDays,
 		];
 	}
 

@@ -18,6 +18,16 @@
    (.k-dialog-buttons), so the action buttons match the close
    button; auto-fit stacks them on narrow screens instead of
    overflowing */
+/* the "time left" value of rows that expire within warnDays;
+   data-theme provides the --theme-color-* variables */
+.k-trash-remaining-cell[data-theme] {
+  display: inline-block;
+  padding: 0 var(--spacing-2);
+  border-radius: var(--rounded);
+  background: var(--theme-color-back);
+  color: var(--theme-color-text);
+}
+
 .k-trash-details-dialog .k-trash-details-actions {
   margin-top: var(--spacing-6);
   display: grid;

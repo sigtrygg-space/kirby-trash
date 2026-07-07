@@ -260,6 +260,50 @@ final class TrashTest extends TestCase
 		$this->assertSame(['theme' => 'passive', 'text' => 1], $this->trash()->badge());
 	}
 
+	public function testWarnStateHighlightsExpiringItems(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		// fresh item: 30 days left, no warn state
+		$this->assertFalse($this->trash()->expiresSoon());
+		$this->assertFalse($this->trash()->panelItems()[0]['expiresSoon']);
+		$this->assertSame('notice', $this->trash()->badge()['theme']);
+
+		// 2 days left (retention 30, deleted 28 days ago): warn state
+		$this->backdateItem('note', 28);
+		$this->assertTrue($this->trash()->expiresSoon());
+		$this->assertTrue($this->trash()->panelItems()[0]['expiresSoon']);
+		$this->assertSame('negative', $this->trash()->badge()['theme']);
+
+		// the column definition carries cell type and warn theme
+		$columns = $this->trash()->panelColumns();
+		$this->assertSame('remaining', $columns['remaining']['type']);
+		$this->assertSame('negative', $columns['remaining']['warnTheme']);
+	}
+
+	public function testWarnStateCanBeDisabledAndRespectsRetention(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+		$this->backdateItem('note', 28);
+
+		// warnDays 0 disables the warn state entirely
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.warnDays' => 0,
+		]);
+		$this->assertFalse($this->trash()->expiresSoon());
+		$this->assertFalse($this->trash()->panelItems()[0]['expiresSoon']);
+		$this->assertSame('notice', $this->trash()->badge()['theme']);
+
+		// retention disabled: nothing ever expires
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.retentionDays' => -1,
+		]);
+		$this->assertNull($this->trash()->nextExpiry());
+		$this->assertFalse($this->trash()->expiresSoon());
+	}
+
 	public function testPanelDialogs(): void
 	{
 		$this->createPage('note');

@@ -6,6 +6,12 @@
   configurable via the new `badge` option: `false` disables it, an
   array restyles it (e.g. `['theme' => 'passive']` for a more subtle
   look)
+- Items that expire soon are highlighted in the table and switch the
+  badge to the warn theme — a last chance to restore before the
+  automatic cleanup removes them. Configurable via the new `warnDays`
+  (default 3, `0` disables) and `warnTheme` (default `negative`)
+  options; the expiry lookup is cached (new plugin `cache`, keyed on
+  the trash root's mtime and item count)
 
 ## 0.1.2 (2026-07-07)
 

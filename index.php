@@ -19,6 +19,11 @@ App::plugin('sigtrygg-space/kirby-trash', [
 		'retentionDays' => Trash::DEFAULT_RETENTION_DAYS,
 		'root'          => null,
 		'badge'         => true,
+		'warnDays'      => 3,
+		'warnTheme'     => 'negative',
+		// caches the next-expiry lookup the menu badge needs
+		// on every Panel request
+		'cache'         => true,
 	],
 
 	// default: no access for non-admin roles; admins are always
@@ -111,12 +116,12 @@ App::plugin('sigtrygg-space/kirby-trash', [
 							$columns = $trash->panelColumns();
 							$fields  = [];
 
-							// one field per row value, labelled by the
-							// table column; fields without a column
-							// (deletedBy) use the plugin key of the
-							// same name
+							// one displayable row value per field,
+							// labelled by the table column; fields
+							// without a column (deletedBy) use the
+							// plugin key of the same name
 							foreach ($trash->panelItem($id) as $key => $value) {
-								if ($key === 'trashId' || ($value ?? '') === '') {
+								if ($key === 'trashId' || is_string($value) === false || $value === '') {
 									continue;
 								}
 
