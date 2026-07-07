@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-07-07)
+
+- The Composer dist package no longer ships development files
+  (`.github` with workflows and screenshots, `tests`, PHPUnit config) —
+  installs contain only the plugin itself
+
 ## 0.1.0 (2026-07-06)
 
 Initial release.
