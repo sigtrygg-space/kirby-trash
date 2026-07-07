@@ -1,0 +1,67 @@
+name: Release
+
+# Tags and publishes a GitHub release whenever the `version` in
+# composer.json changes on main. Releasing therefore means: bump the
+# version and date the CHANGELOG in a PR — merging it releases.
+# The tag is derived from the version field, so the two can never
+# drift apart (Packagist skips tags that don't match the field).
+
+on:
+  push:
+    branches: [main]
+    paths: [composer.json]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the version from composer.json
+        id: composer
+        run: echo "version=$(jq -r '.version // empty' composer.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether the version is already tagged
+        id: tag
+        run: |
+          if [ -z "${{ steps.composer.outputs.version }}" ]; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --tags origin "refs/tags/v${{ steps.composer.outputs.version }}" > /dev/null; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract the release notes from the CHANGELOG
+        if: steps.tag.outputs.new == 'true'
+        run: |
+          awk -v ver="${{ steps.composer.outputs.version }}" '
+            $0 ~ "^## " ver "( |$)" { flag = 1; next }
+            /^## / && flag { exit }
+            flag { print }
+          ' CHANGELOG.md > release-notes.md
+
+          if [ ! -s release-notes.md ]; then
+            echo "See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)." > release-notes.md
+          fi
+
+      - name: Create the tag and the release
+        if: steps.tag.outputs.new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.composer.outputs.version }}
+        run: |
+          # 0.x versions are published as pre-releases
+          case "$VERSION" in
+            0.*) prerelease="--prerelease" ;;
+            *)   prerelease="" ;;
+          esac
+
+          gh release create "v$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "v$VERSION" \
+            --notes-file release-notes.md \
+            $prerelease
