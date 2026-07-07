@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 (2026-07-07)
+
+- composer.json carries the plugin version (shown in the Panel for
+  manual and submodule installs), a real author entry and support
+  links for the Packagist page
+- Releases are automated: a workflow tags and publishes when the
+  version in composer.json changes on main
+
 ## 0.1.1 (2026-07-07)
 
 - The Composer dist package no longer ships development files
