@@ -152,6 +152,10 @@ composer test
 The test suite covers the core logic (trashing, restoring, cleanup,
 retention rules, permission-independent filesystem behaviour).
 
+Releasing a new version: bump `version` in `composer.json`, date the
+CHANGELOG, merge, then tag — Packagist skips tags that do not match
+the `version` field.
+
 ## License
 
 [MIT](LICENSE)
