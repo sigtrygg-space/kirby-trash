@@ -14,9 +14,14 @@
     "homepage": "https://github.com/sigtrygg-space/kirby-trash",
     "authors": [
         {
-            "name": "sigtrygg-space"
+            "name": "Matthias Schmidt",
+            "homepage": "https://github.com/sigtrygg-space"
         }
     ],
+    "support": {
+        "issues": "https://github.com/sigtrygg-space/kirby-trash/issues",
+        "source": "https://github.com/sigtrygg-space/kirby-trash"
+    },
     "require": {
         "php": ">=8.2",
         "getkirby/composer-installer": "^1.2"
