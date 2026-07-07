@@ -19,8 +19,8 @@ App::plugin('sigtrygg-space/kirby-trash', [
 		'retentionDays' => Trash::DEFAULT_RETENTION_DAYS,
 		'root'          => null,
 		'badge'         => true,
-		'warnDays'      => 3,
-		'warnTheme'     => 'negative',
+		'warnDays'      => 5,
+		'warnTheme'     => 'warning',
 		// caches the next-expiry lookup the menu badge needs
 		// on every Panel request
 		'cache'         => true,

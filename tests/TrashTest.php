@@ -274,12 +274,38 @@ final class TrashTest extends TestCase
 		$this->backdateItem('note', 28);
 		$this->assertTrue($this->trash()->expiresSoon());
 		$this->assertTrue($this->trash()->panelItems()[0]['expiresSoon']);
-		$this->assertSame('negative', $this->trash()->badge()['theme']);
+		$this->assertSame('warning', $this->trash()->badge()['theme']);
 
 		// the column definition carries cell type and warn theme
 		$columns = $this->trash()->panelColumns();
 		$this->assertSame('remaining', $columns['remaining']['type']);
-		$this->assertSame('negative', $columns['remaining']['warnTheme']);
+		$this->assertSame('warning', $columns['remaining']['warnTheme']);
+	}
+
+	public function testExpiredItemsAreIgnoredByBadgeAndWarnState(): void
+	{
+		$this->createPage('note');
+		$this->createPage('other');
+		$this->fresh()->page('note')->delete();
+		$this->fresh()->page('other')->delete();
+
+		// one item expired 10 days ago, one freshly deleted
+		$this->backdateItem('note', 40);
+
+		$trash = $this->trash();
+		$this->assertSame(2, $trash->count());
+		$this->assertSame(1, $trash->expiredCount());
+
+		// the badge counts only the live item and does not warn
+		// (the fresh item has 30 days left)
+		$this->assertSame(1, $trash->badge()['text']);
+		$this->assertSame('notice', $trash->badge()['theme']);
+
+		// both expired: no future expiry, the badge disappears
+		$this->backdateItem('other', 40);
+		$this->assertNull($this->trash()->nextExpiry());
+		$this->assertFalse($this->trash()->expiresSoon());
+		$this->assertNull($this->trash()->badge());
 	}
 
 	public function testWarnStateCanBeDisabledAndRespectsRetention(): void

@@ -93,8 +93,8 @@ return [
     // items expiring within this many days are highlighted in
     // the table and switch the badge to the warn theme.
     // 0 disables the warn state
-    'sigtrygg-space.kirby-trash.warnDays' => 3,
-    'sigtrygg-space.kirby-trash.warnTheme' => 'negative',
+    'sigtrygg-space.kirby-trash.warnDays' => 5,
+    'sigtrygg-space.kirby-trash.warnTheme' => 'warning',
 ];
 ```
 

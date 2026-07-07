@@ -491,7 +491,9 @@ class Trash
 	 * The option accepts `true`, `false` or an array with a `theme`
 	 * key — any Panel theme, e.g. `passive` for a more subtle look.
 	 * When an item expires within the warn threshold, the badge
-	 * switches to the warn theme.
+	 * switches to the warn theme. Already expired items are not
+	 * counted: the next cleanup removes them, and opening the area
+	 * (which the badge invites) triggers exactly that.
 	 */
 	public function badge(): array|null
 	{
@@ -503,7 +505,11 @@ class Trash
 
 		$count = $this->count();
 
-		if ($count === 0) {
+		if ($count > 0) {
+			$count -= $this->expiredCount();
+		}
+
+		if ($count <= 0) {
 			return null;
 		}
 
@@ -521,18 +527,20 @@ class Trash
 	 */
 	public function warnDays(): int
 	{
-		$days = $this->kirby->option('sigtrygg-space.kirby-trash.warnDays', 3);
+		$days = $this->kirby->option('sigtrygg-space.kirby-trash.warnDays', 5);
 
 		return is_numeric($days) === true ? max(0, (int)$days) : 0;
 	}
 
 	public function warnTheme(): string
 	{
-		return $this->kirby->option('sigtrygg-space.kirby-trash.warnTheme', 'negative');
+		return $this->kirby->option('sigtrygg-space.kirby-trash.warnTheme', 'warning');
 	}
 
 	/**
-	 * Whether any item expires within the warn threshold
+	 * Whether any item expires within the warn threshold.
+	 * Already expired items don't warn — they are removed by the
+	 * next cleanup anyway and are not counted by the badge either.
 	 */
 	public function expiresSoon(): bool
 	{
@@ -549,42 +557,77 @@ class Trash
 
 	/**
 	 * Timestamp at which the next item expires, or null when nothing
-	 * does (empty trash or retention disabled). The Panel menu needs
-	 * this on every request, so the value is cached persistently and
-	 * keyed on the trash root's mtime and item count — every meta.json
-	 * is only parsed when the trash actually changed.
+	 * does (empty trash or retention disabled); expiries in the past
+	 * are ignored
 	 */
 	public function nextExpiry(): int|null
+	{
+		return $this->expiryStats()['next'];
+	}
+
+	/**
+	 * Number of items whose retention has already passed;
+	 * they are removed by the next cleanup
+	 */
+	public function expiredCount(): int
+	{
+		return $this->expiryStats()['expired'];
+	}
+
+	/**
+	 * Smallest future expiry and the number of already expired
+	 * items in one pass. The Panel menu needs this on every request,
+	 * so the result is cached persistently, keyed on the trash root's
+	 * mtime and item count — every meta.json is only parsed when the
+	 * trash actually changed. A cached entry additionally expires the
+	 * moment its own `next` timestamp passes, so the stats stay
+	 * correct when only time moves on.
+	 */
+	protected function expiryStats(): array
 	{
 		$days = $this->retentionDays();
 		$root = $this->root();
 
 		if ($days === null || is_dir($root) === false) {
-			return null;
+			return ['next' => null, 'expired' => 0];
 		}
 
+		$now    = time();
 		$cache  = $this->kirby->cache('sigtrygg-space.kirby-trash');
 		$key    = (filemtime($root) ?: 0) . ':' . $this->count();
-		$cached = $cache->get('nextExpiry');
+		$cached = $cache->get('expiryStats');
 
-		if (is_array($cached) === true && ($cached['key'] ?? null) === $key) {
-			return $cached['expiry'];
+		if (
+			is_array($cached) === true &&
+			($cached['key'] ?? null) === $key &&
+			(($cached['next'] ?? null) === null || $cached['next'] > $now)
+		) {
+			return ['next' => $cached['next'], 'expired' => $cached['expired'] ?? 0];
 		}
 
-		$earliest = null;
+		$next    = null;
+		$expired = 0;
 
 		foreach ($this->items() as $item) {
 			$deletedAt = strtotime($item['deletedAt'] ?? '') ?: null;
 
-			if ($deletedAt !== null) {
-				$expiry   = $deletedAt + $days * 86400;
-				$earliest = min($earliest ?? $expiry, $expiry);
+			if ($deletedAt === null) {
+				continue;
 			}
+
+			$expiry = $deletedAt + $days * 86400;
+
+			if ($expiry <= $now) {
+				$expired++;
+				continue;
+			}
+
+			$next = min($next ?? $expiry, $expiry);
 		}
 
-		$cache->set('nextExpiry', ['key' => $key, 'expiry' => $earliest]);
+		$cache->set('expiryStats', ['key' => $key, 'next' => $next, 'expired' => $expired]);
 
-		return $earliest;
+		return ['next' => $next, 'expired' => $expired];
 	}
 
 	/**

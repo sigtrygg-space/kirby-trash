@@ -9,9 +9,12 @@
 - Items that expire soon are highlighted in the table and switch the
   badge to the warn theme — a last chance to restore before the
   automatic cleanup removes them. Configurable via the new `warnDays`
-  (default 3, `0` disables) and `warnTheme` (default `negative`)
+  (default 5, `0` disables) and `warnTheme` (default `warning`)
   options; the expiry lookup is cached (new plugin `cache`, keyed on
   the trash root's mtime and item count)
+- Already expired items neither warn nor count: the badge shows only
+  what the next cleanup will keep, so it always matches what opening
+  the area reveals
 
 ## 0.1.2 (2026-07-07)
 
