@@ -287,14 +287,14 @@ class Trash
 	}
 
 	/**
-	 * Discards the request-scoped item cache and the persistent
-	 * plugin cache; must be called by anything that modifies the
-	 * trash storage directly on disk
+	 * Discards the request-scoped item cache and the cached expiry
+	 * stats; must be called by anything that modifies the trash
+	 * storage directly on disk
 	 */
 	public function flushIndex(): void
 	{
 		$this->index = null;
-		$this->kirby->cache('sigtrygg-space.kirby-trash')->flush();
+		$this->kirby->cache('sigtrygg-space.kirby-trash')->remove('expiryStats');
 	}
 
 	/**
