@@ -223,6 +223,43 @@ final class TrashTest extends TestCase
 		$this->assertSame('Kept forever', $this->trash()->panelItems()[0]['remaining']);
 	}
 
+	public function testMenuBadgeShowsItemCount(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$trash = $this->trash();
+		$this->assertSame(1, $trash->count());
+		$this->assertSame(['theme' => 'notice', 'text' => 1], $trash->badge());
+
+		// the area menu carries the badge into the button props
+		$area = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$this->assertSame(['badge' => ['theme' => 'notice', 'text' => 1]], $area['menu']);
+
+		$trash->emptyTrash();
+		$this->assertSame(0, $trash->count());
+		$this->assertNull($trash->badge());
+	}
+
+	public function testMenuBadgeCanBeDisabledAndThemed(): void
+	{
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.badge' => false,
+		]);
+
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$this->assertSame(1, $this->trash()->count());
+		$this->assertNull($this->trash()->badge());
+
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.badge' => ['theme' => 'passive'],
+		]);
+
+		$this->assertSame(['theme' => 'passive', 'text' => 1], $this->trash()->badge());
+	}
+
 	public function testPanelDialogs(): void
 	{
 		$this->createPage('note');

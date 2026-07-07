@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+- The Panel menu entry shows the number of trashed items as a badge —
+  configurable via the new `badge` option: `false` disables it, an
+  array restyles it (e.g. `['theme' => 'passive']` for a more subtle
+  look)
+
 ## 0.1.2 (2026-07-07)
 
 - composer.json carries the plugin version (shown in the Panel for

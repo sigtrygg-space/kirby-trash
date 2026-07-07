@@ -459,6 +459,57 @@ class Trash
 	}
 
 	/**
+	 * Number of items in the trash. Cheap enough for every Panel
+	 * request (one directory listing, no meta parsing) — which is
+	 * why broken entries without meta.json count too and expired
+	 * items count until the next cleanup runs.
+	 */
+	public function count(): int
+	{
+		$root = $this->root();
+
+		if (is_dir($root) === false) {
+			return 0;
+		}
+
+		$count = 0;
+
+		foreach (Dir::read($root) as $entry) {
+			if (is_dir($root . '/' . $entry) === true) {
+				$count++;
+			}
+		}
+
+		return $count;
+	}
+
+	/**
+	 * Badge for the Panel menu button showing the item count, or
+	 * null when the badge is disabled or the trash is empty.
+	 * The option accepts `true`, `false` or an array with a `theme`
+	 * key — any Panel theme, e.g. `passive` for a more subtle look.
+	 */
+	public function badge(): array|null
+	{
+		$option = $this->kirby->option('sigtrygg-space.kirby-trash.badge', true);
+
+		if ($option === false) {
+			return null;
+		}
+
+		$count = $this->count();
+
+		if ($count === 0) {
+			return null;
+		}
+
+		return [
+			'theme' => (is_array($option) === true ? $option['theme'] ?? null : null) ?? 'notice',
+			'text'  => $count,
+		];
+	}
+
+	/**
 	 * Permission check for the current user. Admins are always
 	 * allowed: a site with a custom admin.yml blueprint that does
 	 * not state `permissions: true` would otherwise resolve the
