@@ -172,6 +172,18 @@ composer install --no-plugins
 composer test
 ```
 
+The Panel components live in `src/components/` as Vue single-file
+components and are precompiled with [kirbyup](https://github.com/johannschopplich/kirbyup) —
+the plugin must not rely on the Vue template compiler, which sites
+disable following Kirby's security recommendation (and which is
+deprecated in Kirby 6). After changing them, rebuild the committed
+`index.js` / `index.css`:
+
+```
+npm install
+npm run build
+```
+
 The test suite covers the core logic (trashing, restoring, cleanup,
 retention rules, permission-independent filesystem behaviour).
 

@@ -9,6 +9,11 @@
 - The menu badge can no longer break the Panel: filesystem errors
   while counting degrade to "no badge", and unreadable roots are
   listed as empty
+- The Panel components are precompiled with kirbyup: the plugin no
+  longer needs the Vue template compiler, which sites disable
+  following Kirby's security recommendation (previously the trash
+  area rendered as a blank page on such sites) and which is
+  deprecated in Kirby 6
 
 ## 0.2.0 (2026-07-08)
 
