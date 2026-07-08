@@ -386,6 +386,27 @@ final class TrashTest extends TestCase
 		$this->trash()->postpone($trashId);
 	}
 
+	public function testCorruptDeletedAtDoesNotThrow(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$file    = $this->trash()->root() . '/' . $trashId . '/meta.json';
+		$meta    = Data::read($file, 'json');
+		$meta['deletedAt'] = ['not', 'a', 'string']; // corrupt meta
+		Data::write($file, $meta, 'json');
+		$this->trash()->flushIndex();
+
+		// a non-string timestamp must not throw a TypeError anywhere
+		$this->assertFalse($this->trash()->panelItems()[0]['postponable']);
+		$this->assertSame(0, $this->trash()->cleanup());
+		$this->assertNull($this->trash()->nextExpiry());
+
+		$this->expectException(NotFoundException::class);
+		$this->trash()->postpone($trashId);
+	}
+
 	public function testPostponeLabelPluralizes(): void
 	{
 		$this->assertSame('Keep for another 30 days', $this->trash()->postponeLabel());

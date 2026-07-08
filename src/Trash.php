@@ -546,7 +546,7 @@ class Trash
 		// without a valid deletion date there is nothing to postpone
 		// from, and a keepUntil would give a corrupt (non-expiring)
 		// item an expiry out of nowhere
-		if ((strtotime($meta['deletedAt'] ?? '') ?: null) === null) {
+		if ($this->metaTime($meta, 'deletedAt') === null) {
 			throw $this->notFound();
 		}
 
@@ -563,13 +563,32 @@ class Trash
 	 */
 	protected function expiresAt(array $meta, int $days): int|null
 	{
-		if ($keepUntil = strtotime($meta['keepUntil'] ?? '') ?: null) {
+		if (($keepUntil = $this->metaTime($meta, 'keepUntil')) !== null) {
 			return $keepUntil;
 		}
 
-		$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
+		$deletedAt = $this->metaTime($meta, 'deletedAt');
 
 		return $deletedAt === null ? null : $deletedAt + $days * 86400;
+	}
+
+	/**
+	 * Parses a timestamp meta field into a Unix time, or null when
+	 * it is missing, invalid or not a string (corrupt meta.json must
+	 * not throw). The Unix epoch (`strtotime()` returning 0) counts
+	 * as a valid time.
+	 */
+	protected function metaTime(array $meta, string $key): int|null
+	{
+		$value = $meta[$key] ?? null;
+
+		if (is_string($value) === false) {
+			return null;
+		}
+
+		$time = strtotime($value);
+
+		return $time === false ? null : $time;
 	}
 
 	/**
@@ -897,7 +916,7 @@ class Trash
 
 	protected function panelRow(array $meta, int|null $days, int $warnDays): array
 	{
-		$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
+		$deletedAt = $this->metaTime($meta, 'deletedAt');
 		$expiresAt = $days === null ? null : $this->expiresAt($meta, $days);
 		$remaining = null;
 
