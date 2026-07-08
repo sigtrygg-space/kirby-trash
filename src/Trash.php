@@ -109,15 +109,22 @@ class Trash
 		// only becomes a problem when it cannot be created: the root
 		// itself must not exist as a file, and the closest existing
 		// ancestor (a file anywhere on the path blocks creation too)
-		// must be a writable directory
+		// must be a writable directory. is_link() catches dangling
+		// symlinks, which file_exists() reports as missing although
+		// the node exists and blocks creation.
 		$parent = dirname($root);
 
-		while ($parent !== dirname($parent) && file_exists($parent) === false) {
+		while (
+			$parent !== dirname($parent) &&
+			file_exists($parent) === false &&
+			is_link($parent) === false
+		) {
 			$parent = dirname($parent);
 		}
 
 		if (
 			file_exists($root) === true ||
+			is_link($root) === true ||
 			is_dir($parent) === false ||
 			is_writable($parent) === false
 		) {

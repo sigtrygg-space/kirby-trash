@@ -247,6 +247,19 @@ final class TrashTest extends TestCase
 		]);
 		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
 
+		// dangling symlinks report as missing via file_exists() but
+		// still block creation — as the root and inside the path
+		symlink($this->tmp . '/does-not-exist', $this->tmp . '/dangling');
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.root' => $this->tmp . '/dangling',
+		]);
+		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
+
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.root' => $this->tmp . '/dangling/trash',
+		]);
+		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
+
 		// permission-based cases are bypassed for the superuser
 		if (function_exists('posix_geteuid') === true && posix_geteuid() === 0) {
 			$this->markTestSkipped('permission checks are bypassed when running as root');
