@@ -386,6 +386,27 @@ final class TrashTest extends TestCase
 		$this->trash()->postpone($trashId);
 	}
 
+	public function testCorruptDeletedAtDoesNotThrow(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$file    = $this->trash()->root() . '/' . $trashId . '/meta.json';
+		$meta    = Data::read($file, 'json');
+		$meta['deletedAt'] = ['not', 'a', 'string']; // corrupt meta
+		Data::write($file, $meta, 'json');
+		$this->trash()->flushIndex();
+
+		// a non-string timestamp must not throw a TypeError anywhere
+		$this->assertFalse($this->trash()->panelItems()[0]['postponable']);
+		$this->assertSame(0, $this->trash()->cleanup());
+		$this->assertNull($this->trash()->nextExpiry());
+
+		$this->expectException(NotFoundException::class);
+		$this->trash()->postpone($trashId);
+	}
+
 	public function testPostponeLabelPluralizes(): void
 	{
 		$this->assertSame('Keep for another 30 days', $this->trash()->postponeLabel());
@@ -394,6 +415,38 @@ final class TrashTest extends TestCase
 			'sigtrygg-space.kirby-trash.retentionDays' => 1,
 		]);
 		$this->assertSame('Keep for one more day', $this->trash()->postponeLabel());
+	}
+
+	public function testCleanupLimitRemovesAtMostThatManyItems(): void
+	{
+		foreach (['a-note', 'b-note', 'c-note'] as $slug) {
+			$this->createPage($slug);
+			$this->fresh()->page($slug)->delete();
+			$this->backdateItem($slug, 40);
+		}
+
+		$this->assertSame(2, $this->trash()->cleanup(2));
+		$this->assertCount(1, $this->trash()->items());
+
+		// without a limit the rest is removed
+		$this->assertSame(1, $this->trash()->cleanup());
+		$this->assertCount(0, $this->trash()->items());
+	}
+
+	public function testBadgeTriggersOpportunisticCleanup(): void
+	{
+		$this->createPage('fresh');
+		$this->createPage('stale');
+		$this->fresh()->page('fresh')->delete();
+		$this->fresh()->page('stale')->delete();
+		$this->backdateItem('stale', 40);
+
+		// computing the badge removes the expired item from disk —
+		// not just from the count
+		$this->assertSame(1, $this->trash()->badge()['text']);
+		$this->assertSame(1, $this->trash()->count());
+		$this->assertCount(1, $this->trash()->items());
+		$this->assertSame('fresh', $this->trash()->items()[0]['id']);
 	}
 
 	public function testMenuBadgeShowsItemCount(): void
@@ -469,20 +522,24 @@ final class TrashTest extends TestCase
 		$this->assertSame(2, $trash->count());
 		$this->assertSame(1, $trash->expiredCount());
 
-		// the badge counts only the live item and does not warn
-		// (the fresh item has 30 days left)
-		$this->assertSame(1, $trash->badge()['text']);
-		$this->assertSame('notice', $trash->badge()['theme']);
-
-		// the expired row itself does not warn either
+		// the expired row itself does not warn (checked before the
+		// badge runs, which would remove it opportunistically)
 		$rows = array_column($trash->panelItems(), null, 'path');
 		$this->assertFalse($rows['note']['expiresSoon']);
 
-		// both expired: no future expiry, the badge disappears
+		// the badge counts only the live item, does not warn — and
+		// the opportunistic cleanup removes the expired item
+		$this->assertSame(1, $trash->badge()['text']);
+		$this->assertSame('notice', $trash->badge()['theme']);
+		$this->assertCount(1, $trash->items());
+
+		// the remaining item expires too: no future expiry, the
+		// badge disappears and its cleanup drains the trash
 		$this->backdateItem('other', 40);
 		$this->assertNull($this->trash()->nextExpiry());
 		$this->assertFalse($this->trash()->expiresSoon());
 		$this->assertNull($this->trash()->badge());
+		$this->assertCount(0, $this->trash()->items());
 	}
 
 	public function testWarnStateCanBeDisabledAndRespectsRetention(): void

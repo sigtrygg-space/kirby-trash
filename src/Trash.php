@@ -26,6 +26,12 @@ class Trash
 {
 	public const DEFAULT_RETENTION_DAYS = 30;
 
+	/**
+	 * Maximum number of expired items the opportunistic cleanup
+	 * removes per Panel request (see badge())
+	 */
+	public const CLEANUP_BATCH = 10;
+
 	protected static self|null $instance = null;
 
 	/**
@@ -487,10 +493,11 @@ class Trash
 	}
 
 	/**
-	 * Removes all items whose retention has passed;
-	 * returns the number of removed items
+	 * Removes items whose retention has passed — all of them, or at
+	 * most `$limit` for the opportunistic batches piggybacked on
+	 * Panel requests. Returns the number of removed items.
 	 */
-	public function cleanup(): int
+	public function cleanup(int|null $limit = null): int
 	{
 		$days = $this->retentionDays();
 
@@ -502,9 +509,13 @@ class Trash
 		$removed = 0;
 
 		foreach ($this->items() as $item) {
+			if ($limit !== null && $removed >= $limit) {
+				break;
+			}
+
 			$expiry = $this->expiresAt($item, $days);
 
-			if ($expiry !== null && $expiry < $now) {
+			if ($expiry !== null && $expiry <= $now) {
 				$this->delete($item['trashId']);
 				$removed++;
 			}
@@ -535,7 +546,7 @@ class Trash
 		// without a valid deletion date there is nothing to postpone
 		// from, and a keepUntil would give a corrupt (non-expiring)
 		// item an expiry out of nowhere
-		if ((strtotime($meta['deletedAt'] ?? '') ?: null) === null) {
+		if ($this->metaTime($meta, 'deletedAt') === null) {
 			throw $this->notFound();
 		}
 
@@ -552,13 +563,32 @@ class Trash
 	 */
 	protected function expiresAt(array $meta, int $days): int|null
 	{
-		if ($keepUntil = strtotime($meta['keepUntil'] ?? '') ?: null) {
+		if (($keepUntil = $this->metaTime($meta, 'keepUntil')) !== null) {
 			return $keepUntil;
 		}
 
-		$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
+		$deletedAt = $this->metaTime($meta, 'deletedAt');
 
 		return $deletedAt === null ? null : $deletedAt + $days * 86400;
+	}
+
+	/**
+	 * Parses a timestamp meta field into a Unix time, or null when
+	 * it is missing, invalid or not a string (corrupt meta.json must
+	 * not throw). The Unix epoch (`strtotime()` returning 0) counts
+	 * as a valid time.
+	 */
+	protected function metaTime(array $meta, string $key): int|null
+	{
+		$value = $meta[$key] ?? null;
+
+		if (is_string($value) === false) {
+			return null;
+		}
+
+		$time = strtotime($value);
+
+		return $time === false ? null : $time;
 	}
 
 	/**
@@ -640,6 +670,18 @@ class Trash
 		// never take the whole Panel down, so it degrades to
 		// "no badge" and the area view reports the problem
 		try {
+			// opportunistic cleanup: the expiry stats already know
+			// something expired, so remove a small batch right away —
+			// expired items would otherwise linger invisibly (the
+			// badge neither counts nor warns about them) until
+			// someone opens the trash area. Batching keeps a single
+			// Panel request from paying for a large backlog; leftovers
+			// drain over the following requests, and the CLI command
+			// remains the guaranteed path for unvisited sites.
+			if ($this->expiredCount() > 0) {
+				$this->cleanup(static::CLEANUP_BATCH);
+			}
+
 			$count = $this->count();
 
 			if ($count > 0) {
@@ -874,7 +916,7 @@ class Trash
 
 	protected function panelRow(array $meta, int|null $days, int $warnDays): array
 	{
-		$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
+		$deletedAt = $this->metaTime($meta, 'deletedAt');
 		$expiresAt = $days === null ? null : $this->expiresAt($meta, $days);
 		$remaining = null;
 
