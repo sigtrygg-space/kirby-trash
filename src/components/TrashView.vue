@@ -48,6 +48,7 @@ export default {
     },
     canRestore: Boolean,
     canDelete: Boolean,
+    postponeLabel: String,
     issue: String
   },
   computed: {
@@ -71,6 +72,19 @@ export default {
             dialog: "trash/" + item.trashId + "/restore",
             disabled: !this.canRestore
           },
+          // postpone shares the restore permission; hidden when
+          // retention is disabled (no label) or the item has no
+          // deletion date to postpone from
+          ...(this.postponeLabel && item.postponable
+            ? [
+                {
+                  icon: "clock",
+                  text: this.postponeLabel,
+                  dialog: "trash/" + item.trashId + "/postpone",
+                  disabled: !this.canRestore
+                }
+              ]
+            : []),
           "-",
           {
             icon: "trash",

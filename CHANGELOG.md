@@ -2,6 +2,12 @@
 
 ## 0.3.0 (unreleased)
 
+- Postpone deletion: every item can be kept for another retention
+  cycle via its options menu or the details dialog — the natural
+  action to the warn color's "last chance" signal. Implemented as a
+  `keepUntil` meta field, so the "Deleted" column keeps telling the
+  truth; gated by the `restore` permission and hidden when retention
+  is disabled
 - The empty-trash header button is additionally gated on the root
   warning (defensive only — the warning state already implies an
   empty item list)

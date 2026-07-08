@@ -487,8 +487,8 @@ class Trash
 	}
 
 	/**
-	 * Removes all items that are older than the configured
-	 * retention period; returns the number of removed items
+	 * Removes all items whose retention has passed;
+	 * returns the number of removed items
 	 */
 	public function cleanup(): int
 	{
@@ -498,19 +498,75 @@ class Trash
 			return 0;
 		}
 
-		$expiry  = time() - $days * 86400;
+		$now     = time();
 		$removed = 0;
 
 		foreach ($this->items() as $item) {
-			$deletedAt = strtotime($item['deletedAt'] ?? '') ?: null;
+			$expiry = $this->expiresAt($item, $days);
 
-			if ($deletedAt !== null && $deletedAt < $expiry) {
+			if ($expiry !== null && $expiry < $now) {
 				$this->delete($item['trashId']);
 				$removed++;
 			}
 		}
 
 		return $removed;
+	}
+
+	/**
+	 * Postpones the automatic cleanup of an item by one retention
+	 * cycle from now. Deliberately implemented via a `keepUntil`
+	 * meta field instead of re-stamping `deletedAt`, so the
+	 * "Deleted" column keeps telling the truth.
+	 */
+	public function postpone(string $id): void
+	{
+		$days = $this->retentionDays();
+		$id   = $this->validateId($id);
+		$file = $this->root() . '/' . $id . '/meta.json';
+
+		if ($days === null || is_file($file) === false) {
+			throw $this->notFound();
+		}
+
+		$meta = Data::read($file, 'json');
+		$meta['keepUntil'] = date('c', time() + $days * 86400);
+		Data::write($file, $meta, 'json');
+
+		$this->flushIndex();
+	}
+
+	/**
+	 * Effective expiry timestamp of an item: an explicit
+	 * `keepUntil` (set by postpone()) wins over the regular
+	 * `deletedAt` + retention
+	 */
+	protected function expiresAt(array $meta, int $days): int|null
+	{
+		if ($keepUntil = strtotime($meta['keepUntil'] ?? '') ?: null) {
+			return $keepUntil;
+		}
+
+		$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
+
+		return $deletedAt === null ? null : $deletedAt + $days * 86400;
+	}
+
+	/**
+	 * Label for the postpone action including the cycle length,
+	 * or null when retention is disabled (nothing to postpone)
+	 */
+	public function postponeLabel(): string|null
+	{
+		$days = $this->retentionDays();
+
+		if ($days === null) {
+			return null;
+		}
+
+		return I18n::template('sigtrygg-space.kirby-trash.postpone', null, [
+			'days' => $days,
+		]);
 	}
 
 	public function totalSize(): int
@@ -685,13 +741,11 @@ class Trash
 		$expired = 0;
 
 		foreach ($this->items() as $item) {
-			$deletedAt = strtotime($item['deletedAt'] ?? '') ?: null;
+			$expiry = $this->expiresAt($item, $days);
 
-			if ($deletedAt === null) {
+			if ($expiry === null) {
 				continue;
 			}
-
-			$expiry = $deletedAt + $days * 86400;
 
 			if ($expiry <= $now) {
 				$expired++;
@@ -813,10 +867,11 @@ class Trash
 	protected function panelRow(array $meta, int|null $days, int $warnDays): array
 	{
 		$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
+		$expiresAt = $days === null ? null : $this->expiresAt($meta, $days);
 		$remaining = null;
 
-		if ($days !== null && $deletedAt !== null) {
-			$remaining = max(0, (int)ceil(($deletedAt + $days * 86400 - time()) / 86400));
+		if ($expiresAt !== null) {
+			$remaining = max(0, (int)ceil(($expiresAt - time()) / 86400));
 		}
 
 		return [
@@ -835,6 +890,9 @@ class Trash
 			// warn nor count, the next cleanup removes them
 			'expiresSoon' => $remaining !== null && $remaining > 0
 				&& $warnDays > 0 && $remaining <= $warnDays,
+			// whether the postpone action applies (retention active
+			// and a deletion date to postpone from)
+			'postponable' => $days !== null && $deletedAt !== null,
 		];
 	}
 
