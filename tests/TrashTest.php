@@ -281,7 +281,7 @@ final class TrashTest extends TestCase
 		// (e.g. Windows without elevated rights) skip only this part.
 		Dir::make($this->tmp);
 
-		if (@symlink($this->tmp . '/does-not-exist', $this->tmp . '/dangling') === false) {
+		if (@symlink($this->tmp . '/does-not-exist', $this->tmp . '/dangling') !== true) {
 			$this->markTestSkipped('symlinks cannot be created in this environment');
 		}
 
