@@ -246,14 +246,20 @@ final class TrashTest extends TestCase
 			'sigtrygg-space.kirby-trash.root' => $this->tmp . '/blocker/trash',
 		]);
 		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
+	}
 
-		// permission-based cases are bypassed for the superuser
+	public function testRootIssueDetectsPermissionProblems(): void
+	{
+		// a separate test, so environments that cannot simulate
+		// POSIX permission problems skip only this part and still
+		// run the portable cases above
+
+		// permission checks are bypassed for the superuser
 		if (function_exists('posix_geteuid') === true && posix_geteuid() === 0) {
 			$this->markTestSkipped('permission checks are bypassed when running as root');
 		}
 
-		// chmod() cannot revoke directory permissions on Windows,
-		// so the POSIX-based cases below cannot be simulated there
+		// chmod() cannot revoke directory permissions on Windows
 		if (DIRECTORY_SEPARATOR === '\\') {
 			$this->markTestSkipped('POSIX permissions are not enforced on Windows');
 		}
