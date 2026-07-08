@@ -252,6 +252,12 @@ final class TrashTest extends TestCase
 			$this->markTestSkipped('permission checks are bypassed when running as root');
 		}
 
+		// chmod() cannot revoke directory permissions on Windows,
+		// so the POSIX-based cases below cannot be simulated there
+		if (DIRECTORY_SEPARATOR === '\\') {
+			$this->markTestSkipped('POSIX permissions are not enforced on Windows');
+		}
+
 		$locked = $this->tmp . '/locked';
 		Dir::make($locked);
 		chmod($locked, 0000);
