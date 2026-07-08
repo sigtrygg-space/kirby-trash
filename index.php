@@ -73,6 +73,11 @@ App::plugin('sigtrygg-space/kirby-trash', [
 		'trash' => function (App $kirby) {
 			$trash = Trash::instance();
 
+			// the area closure runs on every Panel request (the menu
+			// is always built), so this is where expired items get
+			// swept opportunistically — see Trash::sweep()
+			$trash->sweep();
+
 			return [
 				'label' => I18n::translate('sigtrygg-space.kirby-trash.title', 'Trash'),
 				'icon'  => 'trash',

@@ -48,6 +48,12 @@ class Trash
 	 */
 	protected array|null $index = null;
 
+	/**
+	 * Request-scoped memo of the expiry stats (see expiryStats());
+	 * reset alongside $index by flushIndex()
+	 */
+	protected array|null $stats = null;
+
 	public function __construct(protected App $kirby)
 	{
 	}
@@ -352,6 +358,7 @@ class Trash
 	public function flushIndex(): void
 	{
 		$this->index = null;
+		$this->stats = null;
 		$this->kirby->cache('sigtrygg-space.kirby-trash')->remove('expiryStats');
 	}
 
@@ -536,17 +543,16 @@ class Trash
 		$id   = $this->validateId($id);
 		$file = $this->root() . '/' . $id . '/meta.json';
 
-		if ($days === null || is_file($file) === false) {
+		if (is_file($file) === false) {
 			throw $this->notFound();
 		}
 
 		$meta = Data::read($file, 'json');
 
-		// same invariant the UI's `postponable` flag gates on:
-		// without a valid deletion date there is nothing to postpone
-		// from, and a keepUntil would give a corrupt (non-expiring)
-		// item an expiry out of nowhere
-		if ($this->metaTime($meta, 'deletedAt') === null) {
+		// enforce the same invariant the UI's `postponable` flag
+		// gates on: a keepUntil for a corrupt (non-expiring) or
+		// retention-disabled item would create an expiry out of nowhere
+		if ($this->postponable($meta, $days) === false) {
 			throw $this->notFound();
 		}
 
@@ -554,6 +560,17 @@ class Trash
 		Data::write($file, $meta, 'json');
 
 		$this->flushIndex();
+	}
+
+	/**
+	 * Whether an item can be postponed: retention has to be active
+	 * (otherwise nothing expires) and the item needs a valid
+	 * deletion date to postpone from. The single source of the rule
+	 * for both the exposed `postponable` flag and postpone()'s guard.
+	 */
+	protected function postponable(array $meta, int|null $days): bool
+	{
+		return $days !== null && $this->metaTime($meta, 'deletedAt') !== null;
 	}
 
 	/**
@@ -654,8 +671,8 @@ class Trash
 	 * key — any Panel theme, e.g. `passive` for a more subtle look.
 	 * When an item expires within the warn threshold, the badge
 	 * switches to the warn theme. Already expired items are not
-	 * counted: the next cleanup removes them, and opening the area
-	 * (which the badge invites) triggers exactly that.
+	 * counted — sweep() removes them, and the count reflects what
+	 * survives.
 	 */
 	public function badge(): array|null
 	{
@@ -670,23 +687,7 @@ class Trash
 		// never take the whole Panel down, so it degrades to
 		// "no badge" and the area view reports the problem
 		try {
-			// opportunistic cleanup: the expiry stats already know
-			// something expired, so remove a small batch right away —
-			// expired items would otherwise linger invisibly (the
-			// badge neither counts nor warns about them) until
-			// someone opens the trash area. Batching keeps a single
-			// Panel request from paying for a large backlog; leftovers
-			// drain over the following requests, and the CLI command
-			// remains the guaranteed path for unvisited sites.
-			if ($this->expiredCount() > 0) {
-				$this->cleanup(static::CLEANUP_BATCH);
-			}
-
-			$count = $this->count();
-
-			if ($count > 0) {
-				$count -= $this->expiredCount();
-			}
+			$count = $this->count() - $this->expiredCount();
 
 			if ($count <= 0) {
 				return null;
@@ -700,6 +701,27 @@ class Trash
 			];
 		} catch (Throwable) {
 			return null;
+		}
+	}
+
+	/**
+	 * Opportunistic maintenance run on Panel access: removes a small
+	 * batch of expired items so they don't linger invisibly (the
+	 * badge neither counts nor warns about them) until someone opens
+	 * the trash area. Batching keeps a single Panel request from
+	 * paying for a large backlog; leftovers drain over the following
+	 * requests, and the CLI command remains the guaranteed path for
+	 * sites where nobody uses the Panel. Never throws — a broken
+	 * trash must not take the menu down.
+	 */
+	public function sweep(): void
+	{
+		try {
+			if ($this->expiryStats()['expired'] > 0) {
+				$this->cleanup(static::CLEANUP_BATCH);
+			}
+		} catch (Throwable) {
+			// broken trash setup — the area view reports the problem
 		}
 	}
 
@@ -767,11 +789,18 @@ class Trash
 	 */
 	protected function expiryStats(): array
 	{
+		// memoized per request: badge() reads expired + next via
+		// expiredCount()/expiresSoon() within one request, and the
+		// menu is built alongside the area view; flushIndex() resets it
+		if ($this->stats !== null) {
+			return $this->stats;
+		}
+
 		$days = $this->retentionDays();
 		$root = $this->root();
 
 		if ($days === null || is_dir($root) === false) {
-			return ['next' => null, 'expired' => 0];
+			return $this->stats = ['next' => null, 'expired' => 0];
 		}
 
 		$now    = time();
@@ -784,7 +813,7 @@ class Trash
 			($cached['key'] ?? null) === $key &&
 			(($cached['next'] ?? null) === null || $cached['next'] > $now)
 		) {
-			return ['next' => $cached['next'], 'expired' => $cached['expired'] ?? 0];
+			return $this->stats = ['next' => $cached['next'], 'expired' => $cached['expired'] ?? 0];
 		}
 
 		$next    = null;
@@ -807,7 +836,7 @@ class Trash
 
 		$cache->set('expiryStats', ['key' => $key, 'next' => $next, 'expired' => $expired]);
 
-		return ['next' => $next, 'expired' => $expired];
+		return $this->stats = ['next' => $next, 'expired' => $expired];
 	}
 
 	/**
@@ -942,7 +971,7 @@ class Trash
 				&& $warnDays > 0 && $remaining <= $warnDays,
 			// whether the postpone action applies (retention active
 			// and a deletion date to postpone from)
-			'postponable' => $days !== null && $deletedAt !== null,
+			'postponable' => $this->postponable($meta, $days),
 		];
 	}
 
