@@ -247,19 +247,6 @@ final class TrashTest extends TestCase
 		]);
 		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
 
-		// dangling symlinks report as missing via file_exists() but
-		// still block creation — as the root and inside the path
-		symlink($this->tmp . '/does-not-exist', $this->tmp . '/dangling');
-		$this->kirby = $this->app([
-			'sigtrygg-space.kirby-trash.root' => $this->tmp . '/dangling',
-		]);
-		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
-
-		$this->kirby = $this->app([
-			'sigtrygg-space.kirby-trash.root' => $this->tmp . '/dangling/trash',
-		]);
-		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
-
 		// permission-based cases are bypassed for the superuser
 		if (function_exists('posix_geteuid') === true && posix_geteuid() === 0) {
 			$this->markTestSkipped('permission checks are bypassed when running as root');
@@ -284,6 +271,29 @@ final class TrashTest extends TestCase
 		} finally {
 			chmod($locked, 0755);
 		}
+	}
+
+	public function testRootIssueDetectsDanglingSymlinks(): void
+	{
+		// dangling symlinks report as missing via file_exists() but
+		// still block creation — as the root and inside the path.
+		// A separate test, so environments without symlink support
+		// (e.g. Windows without elevated rights) skip only this part.
+		Dir::make($this->tmp);
+
+		if (@symlink($this->tmp . '/does-not-exist', $this->tmp . '/dangling') === false) {
+			$this->markTestSkipped('symlinks cannot be created in this environment');
+		}
+
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.root' => $this->tmp . '/dangling',
+		]);
+		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
+
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.root' => $this->tmp . '/dangling/trash',
+		]);
+		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
 	}
 
 	public function testMenuBadgeShowsItemCount(): void
