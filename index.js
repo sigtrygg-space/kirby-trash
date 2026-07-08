@@ -75,6 +75,22 @@ panel.plugin("sigtrygg-space/kirby-trash", {
         </k-panel-inside>
       `
     },
+    // renders the "time left" column; k-table resolves the column's
+    // type "remaining" to this globally registered component
+    "k-table-remaining-cell": {
+      props: {
+        column: Object,
+        field: Object,
+        row: Object,
+        value: [String, Number]
+      },
+      template: `
+        <span
+          class="k-trash-remaining-cell"
+          :data-theme="row.expiresSoon ? column.warnTheme : false"
+        >{{ value }}</span>
+      `
+    },
     "k-trash-details-dialog": {
       props: {
         fields: {

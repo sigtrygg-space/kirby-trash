@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+- The Panel menu entry shows the number of trashed items as a badge —
+  configurable via the new `badge` option: `false` disables it, an
+  array restyles it (e.g. `['theme' => 'passive']` for a more subtle
+  look)
+- Items that expire soon are highlighted in the table and switch the
+  badge to the warn theme — a last chance to restore before the
+  automatic cleanup removes them. Configurable via the new `warnDays`
+  (default 5, `0` disables) and `warnTheme` (default `orange`)
+  options; the expiry lookup is cached (new plugin `cache`, keyed on
+  the trash root's mtime and item count)
+- Already expired items neither warn nor count: the badge shows only
+  what the next cleanup will keep, so it always matches what opening
+  the area reveals
+
 ## 0.1.2 (2026-07-07)
 
 - composer.json carries the plugin version (shown in the Panel for

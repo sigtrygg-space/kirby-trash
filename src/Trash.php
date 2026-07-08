@@ -287,12 +287,14 @@ class Trash
 	}
 
 	/**
-	 * Discards the request-scoped item cache; must be called by
-	 * anything that modifies the trash storage directly on disk
+	 * Discards the request-scoped item cache and the cached expiry
+	 * stats; must be called by anything that modifies the trash
+	 * storage directly on disk
 	 */
 	public function flushIndex(): void
 	{
 		$this->index = null;
+		$this->kirby->cache('sigtrygg-space.kirby-trash')->remove('expiryStats');
 	}
 
 	/**
@@ -459,6 +461,176 @@ class Trash
 	}
 
 	/**
+	 * Number of items in the trash. Cheap enough for every Panel
+	 * request (one directory listing, no meta parsing) — which is
+	 * why broken entries without meta.json count too and expired
+	 * items count until the next cleanup runs.
+	 */
+	public function count(): int
+	{
+		$root = $this->root();
+
+		if (is_dir($root) === false) {
+			return 0;
+		}
+
+		$count = 0;
+
+		foreach (Dir::read($root) as $entry) {
+			if (is_dir($root . '/' . $entry) === true) {
+				$count++;
+			}
+		}
+
+		return $count;
+	}
+
+	/**
+	 * Badge for the Panel menu button showing the item count, or
+	 * null when the badge is disabled or the trash is empty.
+	 * The option accepts `true`, `false` or an array with a `theme`
+	 * key — any Panel theme, e.g. `passive` for a more subtle look.
+	 * When an item expires within the warn threshold, the badge
+	 * switches to the warn theme. Already expired items are not
+	 * counted: the next cleanup removes them, and opening the area
+	 * (which the badge invites) triggers exactly that.
+	 */
+	public function badge(): array|null
+	{
+		$option = $this->kirby->option('sigtrygg-space.kirby-trash.badge', true);
+
+		if ($option === false) {
+			return null;
+		}
+
+		$count = $this->count();
+
+		if ($count > 0) {
+			$count -= $this->expiredCount();
+		}
+
+		if ($count <= 0) {
+			return null;
+		}
+
+		return [
+			'theme' => $this->expiresSoon() === true
+				? $this->warnTheme()
+				: ((is_array($option) === true ? $option['theme'] ?? null : null) ?? 'notice'),
+			'text'  => $count,
+		];
+	}
+
+	/**
+	 * Items expiring within this many days are highlighted in the
+	 * table and escalate the menu badge; 0 disables the warn state
+	 */
+	public function warnDays(): int
+	{
+		$days = $this->kirby->option('sigtrygg-space.kirby-trash.warnDays', 5);
+
+		return is_numeric($days) === true ? max(0, (int)$days) : 0;
+	}
+
+	public function warnTheme(): string
+	{
+		return $this->kirby->option('sigtrygg-space.kirby-trash.warnTheme', 'orange');
+	}
+
+	/**
+	 * Whether any item expires within the warn threshold.
+	 * Already expired items don't warn — they are removed by the
+	 * next cleanup anyway and are not counted by the badge either.
+	 */
+	public function expiresSoon(): bool
+	{
+		$warnDays = $this->warnDays();
+
+		if ($warnDays === 0) {
+			return false;
+		}
+
+		$expiry = $this->nextExpiry();
+
+		return $expiry !== null && $expiry <= time() + $warnDays * 86400;
+	}
+
+	/**
+	 * Timestamp at which the next item expires, or null when nothing
+	 * does (empty trash or retention disabled); expiries in the past
+	 * are ignored
+	 */
+	public function nextExpiry(): int|null
+	{
+		return $this->expiryStats()['next'];
+	}
+
+	/**
+	 * Number of items whose retention has already passed;
+	 * they are removed by the next cleanup
+	 */
+	public function expiredCount(): int
+	{
+		return $this->expiryStats()['expired'];
+	}
+
+	/**
+	 * Smallest future expiry and the number of already expired
+	 * items in one pass. The Panel menu needs this on every request,
+	 * so the result is cached persistently, keyed on the trash root's
+	 * mtime and item count — every meta.json is only parsed when the
+	 * trash actually changed. A cached entry additionally expires the
+	 * moment its own `next` timestamp passes, so the stats stay
+	 * correct when only time moves on.
+	 */
+	protected function expiryStats(): array
+	{
+		$days = $this->retentionDays();
+		$root = $this->root();
+
+		if ($days === null || is_dir($root) === false) {
+			return ['next' => null, 'expired' => 0];
+		}
+
+		$now    = time();
+		$cache  = $this->kirby->cache('sigtrygg-space.kirby-trash');
+		$key    = $root . ':' . (filemtime($root) ?: 0) . ':' . $this->count();
+		$cached = $cache->get('expiryStats');
+
+		if (
+			is_array($cached) === true &&
+			($cached['key'] ?? null) === $key &&
+			(($cached['next'] ?? null) === null || $cached['next'] > $now)
+		) {
+			return ['next' => $cached['next'], 'expired' => $cached['expired'] ?? 0];
+		}
+
+		$next    = null;
+		$expired = 0;
+
+		foreach ($this->items() as $item) {
+			$deletedAt = strtotime($item['deletedAt'] ?? '') ?: null;
+
+			if ($deletedAt === null) {
+				continue;
+			}
+
+			$expiry = $deletedAt + $days * 86400;
+
+			if ($expiry <= $now) {
+				$expired++;
+				continue;
+			}
+
+			$next = min($next ?? $expiry, $expiry);
+		}
+
+		$cache->set('expiryStats', ['key' => $key, 'next' => $next, 'expired' => $expired]);
+
+		return ['next' => $next, 'expired' => $expired];
+	}
+
+	/**
 	 * Permission check for the current user. Admins are always
 	 * allowed: a site with a custom admin.yml blueprint that does
 	 * not state `permissions: true` would otherwise resolve the
@@ -530,6 +702,10 @@ class Trash
 				'label'  => I18n::translate('sigtrygg-space.kirby-trash.column.remaining'),
 				'width'  => '10rem',
 				'mobile' => true,
+				// rendered by the plugin's k-table-remaining-cell,
+				// which applies the warn theme to expiring rows
+				'type'      => 'remaining',
+				'warnTheme' => $this->warnTheme(),
 			],
 		];
 	}
@@ -540,10 +716,11 @@ class Trash
 	 */
 	public function panelItems(): array
 	{
-		$days = $this->retentionDays();
+		$days     = $this->retentionDays();
+		$warnDays = $this->warnDays();
 
 		return array_map(
-			fn (array $meta) => $this->panelRow($meta, $days),
+			fn (array $meta) => $this->panelRow($meta, $days, $warnDays),
 			$this->items()
 		);
 	}
@@ -554,10 +731,10 @@ class Trash
 	 */
 	public function panelItem(string $id): array
 	{
-		return $this->panelRow($this->item($id), $this->retentionDays());
+		return $this->panelRow($this->item($id), $this->retentionDays(), $this->warnDays());
 	}
 
-	protected function panelRow(array $meta, int|null $days): array
+	protected function panelRow(array $meta, int|null $days, int $warnDays): array
 	{
 		$deletedAt = strtotime($meta['deletedAt'] ?? '') ?: null;
 		$remaining = null;
@@ -577,6 +754,11 @@ class Trash
 			'remaining' => $remaining === null
 				? I18n::translate('sigtrygg-space.kirby-trash.remaining.forever', 'Kept forever')
 				: I18n::translateCount('sigtrygg-space.kirby-trash.remaining', $remaining),
+			// drives the warn styling of the remaining cell;
+			// `remaining` 0 means already expired — those neither
+			// warn nor count, the next cleanup removes them
+			'expiresSoon' => $remaining !== null && $remaining > 0
+				&& $warnDays > 0 && $remaining <= $warnDays,
 		];
 	}
 

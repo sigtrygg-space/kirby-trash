@@ -223,6 +223,117 @@ final class TrashTest extends TestCase
 		$this->assertSame('Kept forever', $this->trash()->panelItems()[0]['remaining']);
 	}
 
+	public function testMenuBadgeShowsItemCount(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$trash = $this->trash();
+		$this->assertSame(1, $trash->count());
+		$this->assertSame(['theme' => 'notice', 'text' => 1], $trash->badge());
+
+		// the area menu carries the badge into the button props
+		$area = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$this->assertSame(['badge' => ['theme' => 'notice', 'text' => 1]], $area['menu']);
+
+		$trash->emptyTrash();
+		$this->assertSame(0, $trash->count());
+		$this->assertNull($trash->badge());
+	}
+
+	public function testMenuBadgeCanBeDisabledAndThemed(): void
+	{
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.badge' => false,
+		]);
+
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$this->assertSame(1, $this->trash()->count());
+		$this->assertNull($this->trash()->badge());
+
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.badge' => ['theme' => 'passive'],
+		]);
+
+		$this->assertSame(['theme' => 'passive', 'text' => 1], $this->trash()->badge());
+	}
+
+	public function testWarnStateHighlightsExpiringItems(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		// fresh item: 30 days left, no warn state
+		$this->assertFalse($this->trash()->expiresSoon());
+		$this->assertFalse($this->trash()->panelItems()[0]['expiresSoon']);
+		$this->assertSame('notice', $this->trash()->badge()['theme']);
+
+		// 2 days left (retention 30, deleted 28 days ago): warn state
+		$this->backdateItem('note', 28);
+		$this->assertTrue($this->trash()->expiresSoon());
+		$this->assertTrue($this->trash()->panelItems()[0]['expiresSoon']);
+		$this->assertSame('orange', $this->trash()->badge()['theme']);
+
+		// the column definition carries cell type and warn theme
+		$columns = $this->trash()->panelColumns();
+		$this->assertSame('remaining', $columns['remaining']['type']);
+		$this->assertSame('orange', $columns['remaining']['warnTheme']);
+	}
+
+	public function testExpiredItemsAreIgnoredByBadgeAndWarnState(): void
+	{
+		$this->createPage('note');
+		$this->createPage('other');
+		$this->fresh()->page('note')->delete();
+		$this->fresh()->page('other')->delete();
+
+		// one item expired 10 days ago, one freshly deleted
+		$this->backdateItem('note', 40);
+
+		$trash = $this->trash();
+		$this->assertSame(2, $trash->count());
+		$this->assertSame(1, $trash->expiredCount());
+
+		// the badge counts only the live item and does not warn
+		// (the fresh item has 30 days left)
+		$this->assertSame(1, $trash->badge()['text']);
+		$this->assertSame('notice', $trash->badge()['theme']);
+
+		// the expired row itself does not warn either
+		$rows = array_column($trash->panelItems(), null, 'path');
+		$this->assertFalse($rows['note']['expiresSoon']);
+
+		// both expired: no future expiry, the badge disappears
+		$this->backdateItem('other', 40);
+		$this->assertNull($this->trash()->nextExpiry());
+		$this->assertFalse($this->trash()->expiresSoon());
+		$this->assertNull($this->trash()->badge());
+	}
+
+	public function testWarnStateCanBeDisabledAndRespectsRetention(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+		$this->backdateItem('note', 28);
+
+		// warnDays 0 disables the warn state entirely
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.warnDays' => 0,
+		]);
+		$this->assertFalse($this->trash()->expiresSoon());
+		$this->assertFalse($this->trash()->panelItems()[0]['expiresSoon']);
+		$this->assertSame('notice', $this->trash()->badge()['theme']);
+
+		// retention disabled: nothing ever expires
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.retentionDays' => -1,
+		]);
+		$this->assertNull($this->trash()->nextExpiry());
+		$this->assertFalse($this->trash()->expiresSoon());
+	}
+
 	public function testPanelDialogs(): void
 	{
 		$this->createPage('note');

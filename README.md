@@ -48,9 +48,12 @@ git submodule add https://github.com/sigtrygg-space/kirby-trash.git site/plugins
 
 ## Panel
 
-The plugin adds a **Trash** area to the Panel menu (trash icon). It lists
+The plugin adds a **Trash** area to the Panel menu (trash icon); the menu
+entry shows the number of trashed items as a badge. The area lists
 all trashed items in a table with their original path, size, deletion date
-and the remaining days until automatic cleanup. Each item can be restored
+and the remaining days until automatic cleanup. Items that are about to
+expire are highlighted, and the badge switches to the warning color —
+a last chance to restore before the automatic cleanup removes them. Each item can be restored
 or deleted permanently; the header button empties the whole trash (with a
 confirmation dialog showing the number of items and total size).
 
@@ -81,6 +84,21 @@ return [
     // closure for logic-driven switching, e.g. by environment:
     // 'enabled' => fn ($kirby) => $kirby->system()->isLocal() === false
     'sigtrygg-space.kirby-trash.enabled' => true,
+
+    // show the number of trashed items as a badge on the Panel
+    // menu entry. false disables the badge; an array restyles it,
+    // e.g. ['theme' => 'passive'] for a more subtle look
+    'sigtrygg-space.kirby-trash.badge' => true,
+
+    // items expiring within this many days are highlighted in
+    // the table and switch the badge to the warn theme.
+    // 0 disables the warn state
+    'sigtrygg-space.kirby-trash.warnDays' => 5,
+    'sigtrygg-space.kirby-trash.warnTheme' => 'orange',
+
+    // the badge's expiry lookup is cached persistently
+    // (site/cache); set to false to disable the plugin cache
+    'sigtrygg-space.kirby-trash.cache' => true,
 ];
 ```
 
@@ -151,6 +169,11 @@ composer test
 
 The test suite covers the core logic (trashing, restoring, cleanup,
 retention rules, permission-independent filesystem behaviour).
+
+Note for manual testing: the badge's expiry stats are cached, keyed
+on the trash root's mtime and item count. Editing a `meta.json` by
+hand bypasses that invalidation — touch the trash root (or go through
+the plugin's API) to see the badge update.
 
 Releasing a new version: bump `version` in `composer.json` and date
 the CHANGELOG in one PR — merging it to `main` lets the release
