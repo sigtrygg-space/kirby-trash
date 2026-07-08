@@ -5,9 +5,10 @@
 - The empty-trash header button is additionally gated on the root
   warning (defensive only — the warning state already implies an
   empty item list)
-- rootIssue() also flags a root that exists as a file, or whose path
-  is blocked by a file in an intermediate segment — previously these
-  misconfigurations slipped through as a silent empty area
+- rootIssue() also flags a root that exists as a file or dangling
+  symlink, or whose path is blocked by one in an intermediate
+  segment — previously these misconfigurations slipped through as a
+  silent empty area
 
 ## 0.2.2 (2026-07-08)
 
