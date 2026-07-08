@@ -2,6 +2,11 @@
 
 ## 0.3.0 (unreleased)
 
+- Opportunistic cleanup: whenever the Panel notices expired items, a
+  small batch (up to 10 per request) is removed right away instead of
+  lingering invisibly until someone opens the trash area — no more
+  "invisible gigabyte" on sites where nobody visits the trash; the
+  CLI command remains the guaranteed path for unvisited sites
 - Postpone deletion: every item can be kept for another retention
   cycle via its options menu or the details dialog — the natural
   action to the warn color's "last chance" signal. Implemented as a
