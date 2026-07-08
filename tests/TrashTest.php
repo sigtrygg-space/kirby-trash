@@ -296,6 +296,77 @@ final class TrashTest extends TestCase
 		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
 	}
 
+	public function testPostponeExtendsRetention(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		// 2 days left: warn state active
+		$this->backdateItem('note', 28);
+		$this->assertTrue($this->trash()->expiresSoon());
+
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$this->trash()->postpone($trashId);
+
+		// a full cycle again — and the "Deleted" date stays truthful
+		$row = $this->trash()->panelItems()[0];
+		$this->assertSame('30 days left', $row['remaining']);
+		$this->assertFalse($row['expiresSoon']);
+		$this->assertFalse($this->trash()->expiresSoon());
+
+		// cleanup respects keepUntil even when deletedAt is long past
+		$this->backdateItem('note', 40);
+		$this->assertSame(0, $this->trash()->cleanup());
+		$this->assertCount(1, $this->trash()->items());
+
+		// an expired keepUntil is cleaned up like any other expiry
+		$file = $this->trash()->root() . '/' . $trashId . '/meta.json';
+		$meta = Data::read($file, 'json');
+		$meta['keepUntil'] = date('c', time() - 3600);
+		Data::write($file, $meta, 'json');
+		$this->trash()->flushIndex();
+
+		$this->assertSame(1, $this->trash()->cleanup());
+		$this->assertCount(0, $this->trash()->items());
+	}
+
+	public function testPostponeDialog(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$item    = $this->trash()->items()[0];
+		$area    = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$dialogs = $area['dialogs'];
+
+		$load = $dialogs['trash.postpone']['load']($item['trashId']);
+		$this->assertSame('k-text-dialog', $load['component']);
+		$this->assertStringContainsString('Note', $load['props']['text']);
+		$this->assertStringContainsString('another 30 days', $load['props']['text']);
+
+		$result = $dialogs['trash.postpone']['submit']($item['trashId']);
+		$this->assertSame('Deletion postponed', $result['message']);
+
+		$meta = Data::read($this->trash()->root() . '/' . $item['trashId'] . '/meta.json', 'json');
+		$this->assertNotEmpty($meta['keepUntil']);
+	}
+
+	public function testPostponeUnavailableWithoutRetention(): void
+	{
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.retentionDays' => -1,
+		]);
+
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$this->assertNull($this->trash()->postponeLabel());
+		$this->assertFalse($this->trash()->panelItems()[0]['postponable']);
+
+		$this->expectException(NotFoundException::class);
+		$this->trash()->postpone($this->trash()->items()[0]['trashId']);
+	}
+
 	public function testMenuBadgeShowsItemCount(): void
 	{
 		$this->createPage('note');

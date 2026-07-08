@@ -4,6 +4,7 @@ use Kirby\Cms\App;
 use Kirby\Cms\File;
 use Kirby\Cms\Page;
 use Kirby\Data\Data;
+use Kirby\Exception\NotFoundException;
 use Kirby\Filesystem\F;
 use Kirby\Toolkit\Escape;
 use Kirby\Toolkit\I18n;
@@ -97,6 +98,9 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									'columns'    => $trash->panelColumns(),
 									'canRestore' => $trash->can('restore'),
 									'canDelete'  => $trash->can('delete'),
+									// null when retention is disabled —
+									// then there is nothing to postpone
+									'postponeLabel' => $trash->postponeLabel(),
 									// warning shown when the configured
 									// root is unreadable or uncreatable
 									'issue'      => $trash->rootIssue(),
@@ -117,13 +121,14 @@ App::plugin('sigtrygg-space/kirby-trash', [
 							$trash->ensure('access');
 
 							$columns = $trash->panelColumns();
+							$row     = $trash->panelItem($id);
 							$fields  = [];
 
 							// one displayable row value per field,
 							// labelled by the table column; fields
 							// without a column (deletedBy) use the
 							// plugin key of the same name
-							foreach ($trash->panelItem($id) as $key => $value) {
+							foreach ($row as $key => $value) {
 								if ($key === 'trashId' || is_string($value) === false || $value === '') {
 									continue;
 								}
@@ -142,11 +147,55 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									'trashId'    => $id,
 									'canRestore' => $trash->can('restore'),
 									'canDelete'  => $trash->can('delete'),
+									'postponeLabel' => $row['postponable'] === true
+										? $trash->postponeLabel()
+										: null,
 								],
 							];
 						},
 						// read-only: the close button closes client-side,
 						// no submit handler needed
+					],
+					'trash.postpone' => [
+						'pattern' => 'trash/(:any)/postpone',
+						'load' => function (string $id) {
+							$trash = Trash::instance();
+							$trash->ensure('restore');
+
+							$days = $trash->retentionDays();
+
+							if ($days === null) {
+								// nothing to postpone with retention
+								// disabled; the UI never offers this
+								throw new NotFoundException(
+									key: 'sigtrygg-space.kirby-trash.notFound',
+									fallback: 'The trash item could not be found'
+								);
+							}
+
+							return [
+								'component' => 'k-text-dialog',
+								'props' => [
+									'text' => I18n::template('sigtrygg-space.kirby-trash.dialog.postpone', null, [
+										'title' => Escape::html($trash->panelItem($id)['title']),
+										'days'  => $days,
+									]),
+									'submitButton' => [
+										'icon' => 'clock',
+										'text' => $trash->postponeLabel(),
+									],
+								],
+							];
+						},
+						'submit' => function (string $id) {
+							$trash = Trash::instance();
+							$trash->ensure('restore');
+							$trash->postpone($id);
+
+							return [
+								'message' => I18n::translate('sigtrygg-space.kirby-trash.notification.postponed'),
+							];
+						},
 					],
 					'trash.restore' => [
 						'pattern' => 'trash/(:any)/restore',

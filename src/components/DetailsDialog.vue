@@ -26,6 +26,15 @@
         {{ $t("sigtrygg-space.kirby-trash.restore") }}
       </k-button>
       <k-button
+        v-if="postponeLabel"
+        icon="clock"
+        variant="filled"
+        :disabled="!canRestore"
+        :dialog="'trash/' + trashId + '/postpone'"
+      >
+        {{ postponeLabel }}
+      </k-button>
+      <k-button
         icon="trash"
         variant="filled"
         theme="negative"
@@ -48,6 +57,9 @@ export default {
     trashId: String,
     canRestore: Boolean,
     canDelete: Boolean,
+    // label of the postpone action incl. the cycle length,
+    // or null when the item cannot be postponed
+    postponeLabel: String,
     // passed by the panel's dialog island; must be forwarded to
     // k-dialog explicitly — Vue 2 attribute fallthrough only sets
     // it as a DOM attribute, not as the k-dialog prop, and without

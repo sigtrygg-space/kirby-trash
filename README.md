@@ -53,7 +53,9 @@ entry shows the number of trashed items as a badge. The area lists
 all trashed items in a table with their original path, size, deletion date
 and the remaining days until automatic cleanup. Items that are about to
 expire are highlighted, and the badge switches to the warning color —
-a last chance to restore before the automatic cleanup removes them. Each item can be restored
+a last chance to restore before the automatic cleanup removes them.
+Not sure yet? Every item can be kept for another retention cycle via
+its options menu (requires the `restore` permission). Each item can be restored
 or deleted permanently; the header button empties the whole trash (with a
 confirmation dialog showing the number of items and total size).
 
