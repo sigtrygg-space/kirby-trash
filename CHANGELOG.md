@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.1 (unreleased)
+## 0.2.1 (2026-07-08)
 
 - The Panel area shows a clear warning when the configured trash root
   is not readable or cannot be created (typically in custom folder

@@ -1,6 +1,7 @@
 # keep development files out of the Composer dist package
 # (GitHub builds it via `git archive`, which honors export-ignore)
 /.gitattributes     export-ignore
+/CLAUDE.md          export-ignore
 /.github            export-ignore
 /.gitignore         export-ignore
 /package.json       export-ignore
