@@ -223,6 +223,43 @@ final class TrashTest extends TestCase
 		$this->assertSame('Kept forever', $this->trash()->panelItems()[0]['remaining']);
 	}
 
+	public function testRootIssueDetectsUnusableRoots(): void
+	{
+		// a missing root with a writable ancestor is the normal
+		// state before the first deletion — no issue
+		$this->assertNull($this->trash()->rootIssue());
+
+		// an existing, readable root is fine too
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+		$this->assertNull($this->trash()->rootIssue());
+
+		// permission-based cases are bypassed for the superuser
+		if (function_exists('posix_geteuid') === true && posix_geteuid() === 0) {
+			$this->markTestSkipped('permission checks are bypassed when running as root');
+		}
+
+		$locked = $this->tmp . '/locked';
+		Dir::make($locked);
+		chmod($locked, 0000);
+
+		try {
+			$this->kirby = $this->app([
+				'sigtrygg-space.kirby-trash.root' => $locked . '/trash',
+			]);
+			$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
+
+			$this->kirby = $this->app([
+				'sigtrygg-space.kirby-trash.root' => $locked,
+			]);
+			$this->assertStringContainsString('not readable', $this->trash()->rootIssue());
+			$this->assertSame([], $this->trash()->items());
+			$this->assertSame(0, $this->trash()->count());
+		} finally {
+			chmod($locked, 0755);
+		}
+	}
+
 	public function testMenuBadgeShowsItemCount(): void
 	{
 		$this->createPage('note');

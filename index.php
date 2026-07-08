@@ -97,6 +97,9 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									'columns'    => $trash->panelColumns(),
 									'canRestore' => $trash->can('restore'),
 									'canDelete'  => $trash->can('delete'),
+									// warning shown when the configured
+									// root is unreadable or uncreatable
+									'issue'      => $trash->rootIssue(),
 								],
 							];
 						},

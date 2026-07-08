@@ -14,6 +14,8 @@
     "sigtrygg-space.kirby-trash.column.remaining": "Verbleibend",
     "sigtrygg-space.kirby-trash.remaining": ["Läuft heute ab", "Noch 1 Tag", "Noch {count} Tage"],
     "sigtrygg-space.kirby-trash.remaining.forever": "Bleibt dauerhaft",
+    "sigtrygg-space.kirby-trash.issue.notReadable": "Der Papierkorb-Ordner \"{path}\" ist nicht lesbar. Bitte Berechtigungen und die root-Option des Plugins prüfen.",
+    "sigtrygg-space.kirby-trash.issue.notCreatable": "Der Papierkorb-Ordner \"{path}\" kann nicht angelegt werden. Bitte die root-Option des Plugins prüfen — bei eigenen Ordnerstrukturen muss sie auf den Storage-Ort zeigen.",
     "sigtrygg-space.kirby-trash.dialog.restore": "Möchtest du \"{title}\" wirklich wiederherstellen?",
     "sigtrygg-space.kirby-trash.dialog.delete": "Möchtest du \"{title}\" wirklich endgültig löschen? Dies kann nicht rückgängig gemacht werden.",
     "sigtrygg-space.kirby-trash.dialog.empty.one": "Möchtest du wirklich 1 Eintrag ({size}) im Papierkorb endgültig löschen? Dies kann nicht rückgängig gemacht werden.",

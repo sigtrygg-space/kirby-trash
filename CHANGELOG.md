@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.1 (unreleased)
+
+- The Panel area shows a clear warning when the configured trash root
+  is not readable or cannot be created (typically in custom folder
+  setups where the storage location differs) instead of appearing
+  silently empty
+- The menu badge can no longer break the Panel: filesystem errors
+  while counting degrade to "no badge", and unreadable roots are
+  listed as empty
+- The Panel components are precompiled with kirbyup: the plugin no
+  longer needs the Vue template compiler, which sites disable
+  following Kirby's security recommendation (previously the trash
+  area rendered as a blank page on such sites) and which is
+  deprecated in Kirby 6
+
 ## 0.2.0 (2026-07-08)
 
 - The Panel menu entry shows the number of trashed items as a badge —
