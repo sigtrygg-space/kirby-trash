@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0 (2026-07-08)
 
 - The Panel menu entry shows the number of trashed items as a badge —
   configurable via the new `badge` option: `false` disables it, an
