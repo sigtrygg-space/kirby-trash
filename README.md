@@ -139,6 +139,8 @@ run the bundled CLI command (requires
 kirby trash:cleanup
 ```
 
+![The trash area reporting what the automatic cleanup just removed](.github/screenshot-cleanup-report.png)
+
 ## Permissions
 
 By default only admins can see and manage the trash. Admins always have
