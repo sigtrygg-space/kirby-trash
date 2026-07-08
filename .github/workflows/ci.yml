@@ -22,3 +22,27 @@ jobs:
       - run: composer install --no-plugins --no-interaction --no-progress
 
       - run: vendor/bin/phpunit
+
+  # the committed index.js/index.css must always match a fresh build
+  # of the panel sources — a stale build must never reach main or a
+  # release, since installs use the committed files as-is
+  panel-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Fail if the committed build is stale
+        run: |
+          if ! git diff --exit-code -- index.js index.css; then
+            echo "::error::index.js/index.css are stale — run 'npm run build' and commit the result"
+            exit 1
+          fi
