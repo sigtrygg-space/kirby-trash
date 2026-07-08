@@ -20,7 +20,7 @@ App::plugin('sigtrygg-space/kirby-trash', [
 		'root'          => null,
 		'badge'         => true,
 		'warnDays'      => 5,
-		'warnTheme'     => 'warning',
+		'warnTheme'     => 'orange',
 		// caches the next-expiry lookup the menu badge needs
 		// on every Panel request
 		'cache'         => true,

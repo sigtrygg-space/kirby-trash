@@ -94,7 +94,7 @@ return [
     // the table and switch the badge to the warn theme.
     // 0 disables the warn state
     'sigtrygg-space.kirby-trash.warnDays' => 5,
-    'sigtrygg-space.kirby-trash.warnTheme' => 'warning',
+    'sigtrygg-space.kirby-trash.warnTheme' => 'orange',
 
     // the badge's expiry lookup is cached persistently
     // (site/cache); set to false to disable the plugin cache

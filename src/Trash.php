@@ -534,7 +534,7 @@ class Trash
 
 	public function warnTheme(): string
 	{
-		return $this->kirby->option('sigtrygg-space.kirby-trash.warnTheme', 'warning');
+		return $this->kirby->option('sigtrygg-space.kirby-trash.warnTheme', 'orange');
 	}
 
 	/**

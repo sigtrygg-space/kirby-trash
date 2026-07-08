@@ -274,12 +274,12 @@ final class TrashTest extends TestCase
 		$this->backdateItem('note', 28);
 		$this->assertTrue($this->trash()->expiresSoon());
 		$this->assertTrue($this->trash()->panelItems()[0]['expiresSoon']);
-		$this->assertSame('warning', $this->trash()->badge()['theme']);
+		$this->assertSame('orange', $this->trash()->badge()['theme']);
 
 		// the column definition carries cell type and warn theme
 		$columns = $this->trash()->panelColumns();
 		$this->assertSame('remaining', $columns['remaining']['type']);
-		$this->assertSame('warning', $columns['remaining']['warnTheme']);
+		$this->assertSame('orange', $columns['remaining']['warnTheme']);
 	}
 
 	public function testExpiredItemsAreIgnoredByBadgeAndWarnState(): void
