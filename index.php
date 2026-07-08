@@ -73,11 +73,6 @@ App::plugin('sigtrygg-space/kirby-trash', [
 		'trash' => function (App $kirby) {
 			$trash = Trash::instance();
 
-			// the area closure runs on every Panel request (the menu
-			// is always built), so this is where expired items get
-			// swept opportunistically — see Trash::sweep()
-			$trash->sweep();
-
 			return [
 				'label' => I18n::translate('sigtrygg-space.kirby-trash.title', 'Trash'),
 				'icon'  => 'trash',
@@ -93,7 +88,7 @@ App::plugin('sigtrygg-space/kirby-trash', [
 						'action'  => function () {
 							$trash = Trash::instance();
 							$trash->ensure('access');
-							$trash->cleanup();
+							$cleaned = $trash->cleanup();
 
 							return [
 								'component' => 'k-trash-view',
@@ -109,6 +104,15 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									// warning shown when the configured
 									// root is unreadable or uncreatable
 									'issue'      => $trash->rootIssue(),
+									// explains why the red "cleanup
+									// required" badge led to fewer items
+									'cleaned'    => $cleaned > 0
+										? I18n::template(
+											'sigtrygg-space.kirby-trash.cleaned.' . ($cleaned === 1 ? 'one' : 'many'),
+											null,
+											['count' => $cleaned]
+										)
+										: null,
 								],
 							];
 						},

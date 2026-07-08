@@ -14,6 +14,8 @@
     "sigtrygg-space.kirby-trash.dialog.postpone.one": "Keep \"{title}\" for one more day? The retention period restarts from now.",
     "sigtrygg-space.kirby-trash.dialog.postpone.many": "Keep \"{title}\" for another {days} days? The retention period restarts from now.",
     "sigtrygg-space.kirby-trash.notification.postponed": "Deletion postponed",
+    "sigtrygg-space.kirby-trash.cleaned.one": "1 expired item has just been removed by the automatic cleanup.",
+    "sigtrygg-space.kirby-trash.cleaned.many": "{count} expired items have just been removed by the automatic cleanup.",
     "sigtrygg-space.kirby-trash.deletedBy": "Deleted by",
     "sigtrygg-space.kirby-trash.column.title": "Title",
     "sigtrygg-space.kirby-trash.column.path": "Original path",

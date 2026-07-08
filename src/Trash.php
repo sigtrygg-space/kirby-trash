@@ -26,12 +26,6 @@ class Trash
 {
 	public const DEFAULT_RETENTION_DAYS = 30;
 
-	/**
-	 * Maximum number of expired items the opportunistic cleanup
-	 * removes per Panel request (see badge())
-	 */
-	public const CLEANUP_BATCH = 10;
-
 	protected static self|null $instance = null;
 
 	/**
@@ -500,11 +494,10 @@ class Trash
 	}
 
 	/**
-	 * Removes items whose retention has passed — all of them, or at
-	 * most `$limit` for the opportunistic batches piggybacked on
-	 * Panel requests. Returns the number of removed items.
+	 * Removes all items whose retention has passed;
+	 * returns the number of removed items
 	 */
-	public function cleanup(int|null $limit = null): int
+	public function cleanup(): int
 	{
 		$days = $this->retentionDays();
 
@@ -516,10 +509,6 @@ class Trash
 		$removed = 0;
 
 		foreach ($this->items() as $item) {
-			if ($limit !== null && $removed >= $limit) {
-				break;
-			}
-
 			$expiry = $this->expiresAt($item, $days);
 
 			if ($expiry !== null && $expiry <= $now) {
@@ -665,14 +654,17 @@ class Trash
 	}
 
 	/**
-	 * Badge for the Panel menu button showing the item count, or
-	 * null when the badge is disabled or the trash is empty.
-	 * The option accepts `true`, `false` or an array with a `theme`
-	 * key — any Panel theme, e.g. `passive` for a more subtle look.
-	 * When an item expires within the warn threshold, the badge
-	 * switches to the warn theme. Already expired items are not
-	 * counted — sweep() removes them, and the count reflects what
-	 * survives.
+	 * Badge for the Panel menu button showing the number of live
+	 * (not yet expired) items, or null when the badge is disabled
+	 * or the trash is empty. The option accepts `true`, `false` or
+	 * an array with a `theme` key — any Panel theme, e.g. `passive`
+	 * for a more subtle look. When an item expires within the warn
+	 * threshold, the badge switches to the warn theme.
+	 *
+	 * When ONLY expired items remain, the badge does not disappear
+	 * (that would hide occupied disk space entirely) — it turns into
+	 * a red call to action showing their number. Opening the area
+	 * runs the cleanup and reports what was removed.
 	 */
 	public function badge(): array|null
 	{
@@ -687,41 +679,29 @@ class Trash
 		// never take the whole Panel down, so it degrades to
 		// "no badge" and the area view reports the problem
 		try {
-			$count = $this->count() - $this->expiredCount();
+			$total = $this->count();
 
-			if ($count <= 0) {
+			if ($total === 0) {
 				return null;
+			}
+
+			$live = $total - $this->expiredCount();
+
+			if ($live <= 0) {
+				return [
+					'theme' => 'negative',
+					'text'  => $total,
+				];
 			}
 
 			return [
 				'theme' => $this->expiresSoon() === true
 					? $this->warnTheme()
 					: ((is_array($option) === true ? $option['theme'] ?? null : null) ?? 'notice'),
-				'text'  => $count,
+				'text'  => $live,
 			];
 		} catch (Throwable) {
 			return null;
-		}
-	}
-
-	/**
-	 * Opportunistic maintenance run on Panel access: removes a small
-	 * batch of expired items so they don't linger invisibly (the
-	 * badge neither counts nor warns about them) until someone opens
-	 * the trash area. Batching keeps a single Panel request from
-	 * paying for a large backlog; leftovers drain over the following
-	 * requests, and the CLI command remains the guaranteed path for
-	 * sites where nobody uses the Panel. Never throws — a broken
-	 * trash must not take the menu down.
-	 */
-	public function sweep(): void
-	{
-		try {
-			if ($this->expiryStats()['expired'] > 0) {
-				$this->cleanup(static::CLEANUP_BATCH);
-			}
-		} catch (Throwable) {
-			// broken trash setup — the area view reports the problem
 		}
 	}
 

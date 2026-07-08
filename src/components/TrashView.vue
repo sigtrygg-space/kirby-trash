@@ -21,6 +21,11 @@
       {{ issue }}
     </k-box>
     <template v-else>
+      <!-- explains why the red "cleanup required" badge led here:
+           opening the area removed the expired items just now -->
+      <k-box v-if="cleaned" class="k-trash-cleaned" theme="info" icon="check">
+        {{ cleaned }}
+      </k-box>
       <k-collection
         v-if="items.length > 0"
         layout="table"
@@ -49,7 +54,8 @@ export default {
     canRestore: Boolean,
     canDelete: Boolean,
     postponeLabel: String,
-    issue: String
+    issue: String,
+    cleaned: String
   },
   computed: {
     // all dialogs are defined in the plugin's PHP backend and
