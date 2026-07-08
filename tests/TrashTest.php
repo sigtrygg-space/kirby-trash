@@ -367,6 +367,35 @@ final class TrashTest extends TestCase
 		$this->trash()->postpone($this->trash()->items()[0]['trashId']);
 	}
 
+	public function testPostponeRequiresDeletionDate(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$file    = $this->trash()->root() . '/' . $trashId . '/meta.json';
+		$meta    = Data::read($file, 'json');
+		unset($meta['deletedAt']);
+		Data::write($file, $meta, 'json');
+		$this->trash()->flushIndex();
+
+		// without a deletion date there is nothing to postpone from
+		$this->assertFalse($this->trash()->panelItems()[0]['postponable']);
+
+		$this->expectException(NotFoundException::class);
+		$this->trash()->postpone($trashId);
+	}
+
+	public function testPostponeLabelPluralizes(): void
+	{
+		$this->assertSame('Keep for another 30 days', $this->trash()->postponeLabel());
+
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.retentionDays' => 1,
+		]);
+		$this->assertSame('Keep for one more day', $this->trash()->postponeLabel());
+	}
+
 	public function testMenuBadgeShowsItemCount(): void
 	{
 		$this->createPage('note');

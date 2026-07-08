@@ -6,8 +6,13 @@
     "sigtrygg-space.kirby-trash.delete": "Delete permanently",
     "sigtrygg-space.kirby-trash.emptyTrash": "Empty trash",
     "sigtrygg-space.kirby-trash.details": "Details",
-    "sigtrygg-space.kirby-trash.postpone": "Keep for another {days} days",
-    "sigtrygg-space.kirby-trash.dialog.postpone": "Keep \"{title}\" for another {days} days? The retention period restarts from now.",
+    "sigtrygg-space.kirby-trash.postpone": [
+        "Keep for another {count} days",
+        "Keep for one more day",
+        "Keep for another {count} days"
+    ],
+    "sigtrygg-space.kirby-trash.dialog.postpone.one": "Keep \"{title}\" for one more day? The retention period restarts from now.",
+    "sigtrygg-space.kirby-trash.dialog.postpone.many": "Keep \"{title}\" for another {days} days? The retention period restarts from now.",
     "sigtrygg-space.kirby-trash.notification.postponed": "Deletion postponed",
     "sigtrygg-space.kirby-trash.deletedBy": "Deleted by",
     "sigtrygg-space.kirby-trash.column.title": "Title",
@@ -15,7 +20,11 @@
     "sigtrygg-space.kirby-trash.column.size": "Size",
     "sigtrygg-space.kirby-trash.column.deleted": "Deleted",
     "sigtrygg-space.kirby-trash.column.remaining": "Time left",
-    "sigtrygg-space.kirby-trash.remaining": ["Expires today", "1 day left", "{count} days left"],
+    "sigtrygg-space.kirby-trash.remaining": [
+        "Expires today",
+        "1 day left",
+        "{count} days left"
+    ],
     "sigtrygg-space.kirby-trash.remaining.forever": "Kept forever",
     "sigtrygg-space.kirby-trash.issue.notReadable": "The trash storage folder \"{path}\" is not readable. Check its permissions and the plugin's root option.",
     "sigtrygg-space.kirby-trash.issue.notCreatable": "The trash storage folder \"{path}\" cannot be created. Check the plugin's root option — custom folder setups have to point it at their storage location.",

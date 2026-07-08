@@ -6,8 +6,13 @@
     "sigtrygg-space.kirby-trash.delete": "Endgültig löschen",
     "sigtrygg-space.kirby-trash.emptyTrash": "Papierkorb leeren",
     "sigtrygg-space.kirby-trash.details": "Details",
-    "sigtrygg-space.kirby-trash.postpone": "Noch {days} Tage aufbewahren",
-    "sigtrygg-space.kirby-trash.dialog.postpone": "\"{title}\" noch {days} Tage aufbewahren? Die Aufbewahrungsfrist beginnt ab jetzt neu.",
+    "sigtrygg-space.kirby-trash.postpone": [
+        "Noch {count} Tage aufbewahren",
+        "Noch einen Tag aufbewahren",
+        "Noch {count} Tage aufbewahren"
+    ],
+    "sigtrygg-space.kirby-trash.dialog.postpone.one": "\"{title}\" noch einen Tag aufbewahren? Die Aufbewahrungsfrist beginnt ab jetzt neu.",
+    "sigtrygg-space.kirby-trash.dialog.postpone.many": "\"{title}\" noch {days} Tage aufbewahren? Die Aufbewahrungsfrist beginnt ab jetzt neu.",
     "sigtrygg-space.kirby-trash.notification.postponed": "Löschung aufgeschoben",
     "sigtrygg-space.kirby-trash.deletedBy": "Gelöscht von",
     "sigtrygg-space.kirby-trash.column.title": "Titel",
@@ -15,7 +20,11 @@
     "sigtrygg-space.kirby-trash.column.size": "Größe",
     "sigtrygg-space.kirby-trash.column.deleted": "Gelöscht",
     "sigtrygg-space.kirby-trash.column.remaining": "Verbleibend",
-    "sigtrygg-space.kirby-trash.remaining": ["Läuft heute ab", "Noch 1 Tag", "Noch {count} Tage"],
+    "sigtrygg-space.kirby-trash.remaining": [
+        "Läuft heute ab",
+        "Noch 1 Tag",
+        "Noch {count} Tage"
+    ],
     "sigtrygg-space.kirby-trash.remaining.forever": "Bleibt dauerhaft",
     "sigtrygg-space.kirby-trash.issue.notReadable": "Der Papierkorb-Ordner \"{path}\" ist nicht lesbar. Bitte Berechtigungen und die root-Option des Plugins prüfen.",
     "sigtrygg-space.kirby-trash.issue.notCreatable": "Der Papierkorb-Ordner \"{path}\" kann nicht angelegt werden. Bitte die root-Option des Plugins prüfen — bei eigenen Ordnerstrukturen muss sie auf den Storage-Ort zeigen.",

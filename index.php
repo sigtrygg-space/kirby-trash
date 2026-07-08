@@ -162,24 +162,31 @@ App::plugin('sigtrygg-space/kirby-trash', [
 							$trash = Trash::instance();
 							$trash->ensure('restore');
 
-							$days = $trash->retentionDays();
+							$row = $trash->panelItem($id);
 
-							if ($days === null) {
-								// nothing to postpone with retention
-								// disabled; the UI never offers this
+							// retention disabled or no deletion date to
+							// postpone from — the UI never offers this,
+							// refuse crafted requests as a backstop
+							if ($row['postponable'] !== true) {
 								throw new NotFoundException(
 									key: 'sigtrygg-space.kirby-trash.notFound',
 									fallback: 'The trash item could not be found'
 								);
 							}
 
+							$days = $trash->retentionDays();
+
 							return [
 								'component' => 'k-text-dialog',
 								'props' => [
-									'text' => I18n::template('sigtrygg-space.kirby-trash.dialog.postpone', null, [
-										'title' => Escape::html($trash->panelItem($id)['title']),
-										'days'  => $days,
-									]),
+									'text' => I18n::template(
+										'sigtrygg-space.kirby-trash.dialog.postpone.' . ($days === 1 ? 'one' : 'many'),
+										null,
+										[
+											'title' => Escape::html($row['title']),
+											'days'  => $days,
+										]
+									),
 									'submitButton' => [
 										'icon' => 'clock',
 										'text' => $trash->postponeLabel(),

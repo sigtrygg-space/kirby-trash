@@ -530,6 +530,15 @@ class Trash
 		}
 
 		$meta = Data::read($file, 'json');
+
+		// same invariant the UI's `postponable` flag gates on:
+		// without a valid deletion date there is nothing to postpone
+		// from, and a keepUntil would give a corrupt (non-expiring)
+		// item an expiry out of nowhere
+		if ((strtotime($meta['deletedAt'] ?? '') ?: null) === null) {
+			throw $this->notFound();
+		}
+
 		$meta['keepUntil'] = date('c', time() + $days * 86400);
 		Data::write($file, $meta, 'json');
 
@@ -553,7 +562,8 @@ class Trash
 	}
 
 	/**
-	 * Label for the postpone action including the cycle length,
+	 * Label for the postpone action including the cycle length
+	 * (count translation, so `retentionDays => 1` reads correctly),
 	 * or null when retention is disabled (nothing to postpone)
 	 */
 	public function postponeLabel(): string|null
@@ -564,9 +574,7 @@ class Trash
 			return null;
 		}
 
-		return I18n::template('sigtrygg-space.kirby-trash.postpone', null, [
-			'days' => $days,
-		]);
+		return I18n::translateCount('sigtrygg-space.kirby-trash.postpone', $days);
 	}
 
 	public function totalSize(): int
