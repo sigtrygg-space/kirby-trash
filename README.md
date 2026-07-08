@@ -170,6 +170,11 @@ composer test
 The test suite covers the core logic (trashing, restoring, cleanup,
 retention rules, permission-independent filesystem behaviour).
 
+Note for manual testing: the badge's expiry stats are cached, keyed
+on the trash root's mtime and item count. Editing a `meta.json` by
+hand bypasses that invalidation — touch the trash root (or go through
+the plugin's API) to see the badge update.
+
 Releasing a new version: bump `version` in `composer.json` and date
 the CHANGELOG in one PR — merging it to `main` lets the release
 workflow create the matching tag and GitHub release automatically
