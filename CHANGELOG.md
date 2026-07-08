@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.0 (2026-07-08)
 
 - Expired items no longer linger invisibly until someone opens the
   trash area: when only expired items remain, the menu badge no
