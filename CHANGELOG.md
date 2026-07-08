@@ -2,9 +2,11 @@
 
 ## 0.3.0 (unreleased)
 
-- Opportunistic cleanup: whenever the Panel notices expired items, a
-  small batch (up to 10 per request) is removed right away instead of
-  lingering invisibly until someone opens the trash area — no more
+- Expired items no longer linger invisibly until someone opens the
+  trash area: when only expired items remain, the menu badge no
+  longer disappears but turns red, showing their number as a
+  "cleanup required" call to action. Opening the area removes them
+  (as before) and now reports what was just cleaned up — no more
   "invisible gigabyte" on sites where nobody visits the trash; the
   CLI command remains the guaranteed path for unvisited sites
 - Postpone deletion: every item can be kept for another retention

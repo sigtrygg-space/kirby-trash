@@ -14,6 +14,8 @@
     "sigtrygg-space.kirby-trash.dialog.postpone.one": "\"{title}\" noch einen Tag aufbewahren? Die Aufbewahrungsfrist beginnt ab jetzt neu.",
     "sigtrygg-space.kirby-trash.dialog.postpone.many": "\"{title}\" noch {days} Tage aufbewahren? Die Aufbewahrungsfrist beginnt ab jetzt neu.",
     "sigtrygg-space.kirby-trash.notification.postponed": "Löschung aufgeschoben",
+    "sigtrygg-space.kirby-trash.cleaned.one": "1 abgelaufener Eintrag wurde soeben von der automatischen Bereinigung entfernt.",
+    "sigtrygg-space.kirby-trash.cleaned.many": "{count} abgelaufene Einträge wurden soeben von der automatischen Bereinigung entfernt.",
     "sigtrygg-space.kirby-trash.deletedBy": "Gelöscht von",
     "sigtrygg-space.kirby-trash.column.title": "Titel",
     "sigtrygg-space.kirby-trash.column.path": "Ursprünglicher Pfad",

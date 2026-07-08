@@ -126,12 +126,13 @@ versions are migrated on read — trash contents survive plugin upgrades.
 
 ### Automatic cleanup
 
-Expired items are removed whenever the trash area is opened — and
-opportunistically in small batches (up to 10 per Panel request)
-whenever the Panel notices expired items, so they don't pile up
-invisibly on sites where nobody visits the trash. Kirby has no native
-cron; if you want guaranteed cleanup on sites where nobody uses the
-Panel at all, run the bundled CLI command (requires
+Expired items are removed whenever the trash area is opened; the area
+then reports how many items were just cleaned up. So that expired
+items never pile up invisibly, the menu badge does not disappear when
+only expired items remain — it turns red and shows their number as a
+"cleanup required" call to action. Kirby has no native cron; if you
+want guaranteed cleanup on sites where nobody uses the Panel at all,
+run the bundled CLI command (requires
 [getkirby/cli](https://github.com/getkirby/cli)) as a cronjob:
 
 ```

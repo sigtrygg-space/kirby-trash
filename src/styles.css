@@ -18,6 +18,12 @@
    (.k-dialog-buttons), so the action buttons match the close
    button; auto-fit stacks them on narrow screens instead of
    overflowing */
+/* the "N expired items were just removed" note sits above the
+   list / empty state and needs a gap towards it */
+.k-trash-view .k-trash-cleaned {
+  margin-bottom: var(--spacing-6);
+}
+
 /* the "time left" value of rows that expire within warnDays;
    data-theme provides the --theme-color-* variables */
 .k-trash-remaining-cell[data-theme] {

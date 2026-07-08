@@ -417,23 +417,7 @@ final class TrashTest extends TestCase
 		$this->assertSame('Keep for one more day', $this->trash()->postponeLabel());
 	}
 
-	public function testCleanupLimitRemovesAtMostThatManyItems(): void
-	{
-		foreach (['a-note', 'b-note', 'c-note'] as $slug) {
-			$this->createPage($slug);
-			$this->fresh()->page($slug)->delete();
-			$this->backdateItem($slug, 40);
-		}
-
-		$this->assertSame(2, $this->trash()->cleanup(2));
-		$this->assertCount(1, $this->trash()->items());
-
-		// without a limit the rest is removed
-		$this->assertSame(1, $this->trash()->cleanup());
-		$this->assertCount(0, $this->trash()->items());
-	}
-
-	public function testBadgeTriggersOpportunisticCleanup(): void
+	public function testBadgeTurnsRedWhenOnlyExpiredItemsRemain(): void
 	{
 		$this->createPage('fresh');
 		$this->createPage('stale');
@@ -441,12 +425,43 @@ final class TrashTest extends TestCase
 		$this->fresh()->page('stale')->delete();
 		$this->backdateItem('stale', 40);
 
-		// computing the badge removes the expired item from disk —
-		// not just from the count
-		$this->assertSame(1, $this->trash()->badge()['text']);
-		$this->assertSame(1, $this->trash()->count());
+		// as long as live items remain, only those are counted
+		$this->assertSame(['theme' => 'notice', 'text' => 1], $this->trash()->badge());
+
+		// only expired items left: instead of disappearing (and
+		// hiding the occupied disk space), the badge becomes a red
+		// call to action showing their number
+		$this->backdateItem('fresh', 40);
+		$this->assertSame(['theme' => 'negative', 'text' => 2], $this->trash()->badge());
+	}
+
+	public function testAreaViewCleansUpAndReports(): void
+	{
+		$this->createPage('fresh');
+		$this->createPage('stale');
+		$this->fresh()->page('fresh')->delete();
+		$this->fresh()->page('stale')->delete();
+		$this->backdateItem('stale', 40);
+
+		// building the area (as on every Panel request) must not
+		// touch the trash — the closure runs before Kirby's
+		// firewall, so it must not have side effects
+		$area = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$this->assertCount(2, $this->trash()->items());
+
+		// opening the view removes expired items and explains the
+		// shrunken list to whoever followed the red badge here
+		$props = $area['views'][0]['action']()['props'];
 		$this->assertCount(1, $this->trash()->items());
 		$this->assertSame('fresh', $this->trash()->items()[0]['id']);
+		$this->assertSame(
+			'1 expired item has just been removed by the automatic cleanup.',
+			$props['cleaned']
+		);
+
+		// the next visit removes nothing and shows no note
+		$props = $area['views'][0]['action']()['props'];
+		$this->assertNull($props['cleaned']);
 	}
 
 	public function testMenuBadgeShowsItemCount(): void
@@ -522,24 +537,20 @@ final class TrashTest extends TestCase
 		$this->assertSame(2, $trash->count());
 		$this->assertSame(1, $trash->expiredCount());
 
-		// the expired row itself does not warn (checked before the
-		// badge runs, which would remove it opportunistically)
+		// the badge counts only the live item and does not warn
+		// (badge() is a pure getter — it does not delete anything)
+		$this->assertSame(1, $trash->badge()['text']);
+		$this->assertSame('notice', $trash->badge()['theme']);
+		$this->assertFalse($trash->expiresSoon());
 		$rows = array_column($trash->panelItems(), null, 'path');
 		$this->assertFalse($rows['note']['expiresSoon']);
 
-		// the badge counts only the live item, does not warn — and
-		// the opportunistic cleanup removes the expired item
-		$this->assertSame(1, $trash->badge()['text']);
-		$this->assertSame('notice', $trash->badge()['theme']);
-		$this->assertCount(1, $trash->items());
-
-		// the remaining item expires too: no future expiry, the
-		// badge disappears and its cleanup drains the trash
+		// both expired: no future expiry, no warn state — the badge
+		// turns into the red cleanup call to action instead
 		$this->backdateItem('other', 40);
 		$this->assertNull($this->trash()->nextExpiry());
 		$this->assertFalse($this->trash()->expiresSoon());
-		$this->assertNull($this->trash()->badge());
-		$this->assertCount(0, $this->trash()->items());
+		$this->assertSame(['theme' => 'negative', 'text' => 2], $this->trash()->badge());
 	}
 
 	public function testWarnStateCanBeDisabledAndRespectsRetention(): void
