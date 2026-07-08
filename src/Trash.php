@@ -515,7 +515,7 @@ class Trash
 
 			$expiry = $this->expiresAt($item, $days);
 
-			if ($expiry !== null && $expiry < $now) {
+			if ($expiry !== null && $expiry <= $now) {
 				$this->delete($item['trashId']);
 				$removed++;
 			}
