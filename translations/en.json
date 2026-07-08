@@ -14,6 +14,8 @@
     "sigtrygg-space.kirby-trash.column.remaining": "Time left",
     "sigtrygg-space.kirby-trash.remaining": ["Expires today", "1 day left", "{count} days left"],
     "sigtrygg-space.kirby-trash.remaining.forever": "Kept forever",
+    "sigtrygg-space.kirby-trash.issue.notReadable": "The trash storage folder \"{path}\" is not readable. Check its permissions and the plugin's root option.",
+    "sigtrygg-space.kirby-trash.issue.notCreatable": "The trash storage folder \"{path}\" cannot be created. Check the plugin's root option — custom folder setups have to point it at their storage location.",
     "sigtrygg-space.kirby-trash.dialog.restore": "Do you really want to restore \"{title}\"?",
     "sigtrygg-space.kirby-trash.dialog.delete": "Do you really want to permanently delete \"{title}\"? This cannot be undone.",
     "sigtrygg-space.kirby-trash.dialog.empty.one": "Do you really want to permanently delete 1 item ({size}) from the trash? This cannot be undone.",

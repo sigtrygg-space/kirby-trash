@@ -85,6 +85,45 @@ class Trash
 	}
 
 	/**
+	 * Human-readable problem with the configured trash root, or
+	 * null when the root is usable. Custom folder setups have to
+	 * point the `root` option at their storage location; this
+	 * powers the warning box in the Panel area instead of a
+	 * silently empty (or broken) one.
+	 */
+	public function rootIssue(): string|null
+	{
+		$root = $this->root();
+
+		if (is_dir($root) === true) {
+			if (is_readable($root) === false) {
+				return I18n::template('sigtrygg-space.kirby-trash.issue.notReadable', null, [
+					'path' => $root,
+				]);
+			}
+
+			return null;
+		}
+
+		// a missing root is normal before the first deletion —
+		// it only becomes a problem when it cannot be created;
+		// walk up to the closest existing ancestor and check there
+		$parent = dirname($root);
+
+		while ($parent !== dirname($parent) && is_dir($parent) === false) {
+			$parent = dirname($parent);
+		}
+
+		if (is_writable($parent) === false) {
+			return I18n::template('sigtrygg-space.kirby-trash.issue.notCreatable', null, [
+				'path' => $root,
+			]);
+		}
+
+		return null;
+	}
+
+	/**
 	 * Number of days items are kept before they are removed
 	 * automatically; `null` means items are kept forever.
 	 *
@@ -312,9 +351,17 @@ class Trash
 			return $this->index = [];
 		}
 
+		// an unreadable root lists as empty; the Panel area
+		// explains the problem via rootIssue()
+		try {
+			$entries = Dir::read($root);
+		} catch (Throwable) {
+			return $this->index = [];
+		}
+
 		$items = [];
 
-		foreach (Dir::read($root) as $dir) {
+		foreach ($entries as $dir) {
 			try {
 				$meta = Data::read($root . '/' . $dir . '/meta.json', 'json');
 			} catch (Throwable) {
@@ -465,6 +512,8 @@ class Trash
 	 * request (one directory listing, no meta parsing) — which is
 	 * why broken entries without meta.json count too and expired
 	 * items count until the next cleanup runs.
+	 * An unreadable root counts as empty; the Panel area explains
+	 * the problem via rootIssue().
 	 */
 	public function count(): int
 	{
@@ -474,9 +523,15 @@ class Trash
 			return 0;
 		}
 
+		try {
+			$entries = Dir::read($root);
+		} catch (Throwable) {
+			return 0;
+		}
+
 		$count = 0;
 
-		foreach (Dir::read($root) as $entry) {
+		foreach ($entries as $entry) {
 			if (is_dir($root . '/' . $entry) === true) {
 				$count++;
 			}
@@ -503,22 +558,30 @@ class Trash
 			return null;
 		}
 
-		$count = $this->count();
+		// the badge is computed on every Panel request; a broken
+		// trash setup (unreadable root, failing cache, …) must
+		// never take the whole Panel down, so it degrades to
+		// "no badge" and the area view reports the problem
+		try {
+			$count = $this->count();
 
-		if ($count > 0) {
-			$count -= $this->expiredCount();
-		}
+			if ($count > 0) {
+				$count -= $this->expiredCount();
+			}
 
-		if ($count <= 0) {
+			if ($count <= 0) {
+				return null;
+			}
+
+			return [
+				'theme' => $this->expiresSoon() === true
+					? $this->warnTheme()
+					: ((is_array($option) === true ? $option['theme'] ?? null : null) ?? 'notice'),
+				'text'  => $count,
+			];
+		} catch (Throwable) {
 			return null;
 		}
-
-		return [
-			'theme' => $this->expiresSoon() === true
-				? $this->warnTheme()
-				: ((is_array($option) === true ? $option['theme'] ?? null : null) ?? 'notice'),
-			'text'  => $count,
-		];
 	}
 
 	/**

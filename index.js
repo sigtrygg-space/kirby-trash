@@ -11,7 +11,8 @@ panel.plugin("sigtrygg-space/kirby-trash", {
           default: () => ({})
         },
         canRestore: Boolean,
-        canDelete: Boolean
+        canDelete: Boolean,
+        issue: String
       },
       computed: {
         // all dialogs are defined in the plugin's PHP backend and
@@ -62,6 +63,9 @@ panel.plugin("sigtrygg-space/kirby-trash", {
               </k-button>
             </template>
           </k-header>
+          <k-box v-if="issue" theme="negative" icon="alert">
+            {{ issue }}
+          </k-box>
           <k-collection
             v-if="items.length > 0"
             layout="table"
