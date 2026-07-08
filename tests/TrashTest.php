@@ -234,6 +234,19 @@ final class TrashTest extends TestCase
 		$this->fresh()->page('note')->delete();
 		$this->assertNull($this->trash()->rootIssue());
 
+		// the root itself exists as a file: cannot be created
+		F::write($this->tmp . '/blocker', 'not a directory');
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.root' => $this->tmp . '/blocker',
+		]);
+		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
+
+		// a file in the middle of the path blocks creation as well
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.root' => $this->tmp . '/blocker/trash',
+		]);
+		$this->assertStringContainsString('cannot be created', $this->trash()->rootIssue());
+
 		// permission-based cases are bypassed for the superuser
 		if (function_exists('posix_geteuid') === true && posix_geteuid() === 0) {
 			$this->markTestSkipped('permission checks are bypassed when running as root');

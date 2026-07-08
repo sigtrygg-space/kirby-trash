@@ -105,16 +105,22 @@ class Trash
 			return null;
 		}
 
-		// a missing root is normal before the first deletion —
-		// it only becomes a problem when it cannot be created;
-		// walk up to the closest existing ancestor and check there
+		// a missing root is normal before the first deletion — it
+		// only becomes a problem when it cannot be created: the root
+		// itself must not exist as a file, and the closest existing
+		// ancestor (a file anywhere on the path blocks creation too)
+		// must be a writable directory
 		$parent = dirname($root);
 
-		while ($parent !== dirname($parent) && is_dir($parent) === false) {
+		while ($parent !== dirname($parent) && file_exists($parent) === false) {
 			$parent = dirname($parent);
 		}
 
-		if (is_writable($parent) === false) {
+		if (
+			file_exists($root) === true ||
+			is_dir($parent) === false ||
+			is_writable($parent) === false
+		) {
 			return I18n::template('sigtrygg-space.kirby-trash.issue.notCreatable', null, [
 				'path' => $root,
 			]);
