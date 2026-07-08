@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 (unreleased)
+
+- The empty-trash header button is additionally gated on the root
+  warning (defensive only — the warning state already implies an
+  empty item list)
+
 ## 0.2.2 (2026-07-08)
 
 - The root warning replaces the trash list entirely — no more

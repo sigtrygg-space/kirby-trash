@@ -4,7 +4,7 @@
       {{ $t("sigtrygg-space.kirby-trash.title") }}
       <template #buttons>
         <k-button
-          v-if="items.length > 0 && canDelete"
+          v-if="items.length > 0 && canDelete && !issue"
           icon="trash"
           variant="filled"
           theme="negative"
