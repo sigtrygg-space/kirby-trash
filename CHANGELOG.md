@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2 (2026-07-08)
+
+- The root warning replaces the trash list entirely — no more
+  "The trash is empty" directly below the error box, which was
+  misleading anyway (the trash is unreadable, not empty)
+
 ## 0.2.1 (2026-07-08)
 
 - The Panel area shows a clear warning when the configured trash root

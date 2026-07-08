@@ -15,19 +15,23 @@
         </k-button>
       </template>
     </k-header>
+    <!-- with an unusable root, "the trash is empty" would be a lie —
+         the warning replaces the list/empty state entirely -->
     <k-box v-if="issue" theme="negative" icon="alert">
       {{ issue }}
     </k-box>
-    <k-collection
-      v-if="items.length > 0"
-      layout="table"
-      :columns="columns"
-      :items="rows"
-      :help="$t('sigtrygg-space.kirby-trash.help')"
-    />
-    <k-empty v-else icon="trash">
-      {{ $t("sigtrygg-space.kirby-trash.empty") }}
-    </k-empty>
+    <template v-else>
+      <k-collection
+        v-if="items.length > 0"
+        layout="table"
+        :columns="columns"
+        :items="rows"
+        :help="$t('sigtrygg-space.kirby-trash.help')"
+      />
+      <k-empty v-else icon="trash">
+        {{ $t("sigtrygg-space.kirby-trash.empty") }}
+      </k-empty>
+    </template>
   </k-panel-inside>
 </template>
 
