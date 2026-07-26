@@ -46,3 +46,17 @@ jobs:
             echo "::error::index.js/index.css are stale — run 'npm run build' and commit the result"
             exit 1
           fi
+
+  # release.yml only fires on a push to main that touches composer.json,
+  # so nothing else in CI ever runs its scripts — without this job the
+  # first execution of a change to them would be an actual release,
+  # unattended and with `contents: write`
+  release-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Exercise the release workflow's run blocks
+        run: |
+          python3 -c 'import yaml' 2> /dev/null || pip install --quiet pyyaml
+          .github/scripts/test-release-workflow.sh
