@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.1 (unreleased)
+## 0.3.1 (2026-07-26)
 
 - The red "cleanup required" badge no longer survives the click it
   invites: Kirby builds the Panel areas before it calls the route
