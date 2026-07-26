@@ -618,9 +618,12 @@ class Trash
 	 * root rather than summed from the stored `size` fields, so
 	 * entries without a readable meta.json count too — the
 	 * empty-trash dialog promises to free exactly this much.
-	 * An unreadable root reports 0, like items() and count():
-	 * Dir::size() walks the root itself and would throw otherwise,
-	 * and the Panel area explains the problem via rootIssue().
+	 * An unreadable root reports 0, like items() and count(), and the
+	 * Panel area explains the problem via rootIssue(). Measured one
+	 * entry at a time because Dir::size() recurses and throws on any
+	 * unreadable folder in the tree: summing the root in one call
+	 * would let a single bad subfolder discard every healthy entry's
+	 * bytes, where items() drops only the entry it cannot read.
 	 */
 	public function totalSize(): int
 	{
@@ -631,10 +634,24 @@ class Trash
 		}
 
 		try {
-			return Dir::size($root) ?: 0;
+			$entries = Dir::read($root);
 		} catch (Throwable) {
 			return 0;
 		}
+
+		$size = 0;
+
+		foreach ($entries as $entry) {
+			$path = $root . '/' . $entry;
+
+			try {
+				$size += (is_dir($path) === true ? Dir::size($path) : F::size($path)) ?: 0;
+			} catch (Throwable) {
+				continue;
+			}
+		}
+
+		return $size;
 	}
 
 	/**

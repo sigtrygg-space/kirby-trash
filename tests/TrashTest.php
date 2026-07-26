@@ -540,6 +540,38 @@ final class TrashTest extends TestCase
 		$this->assertSame(0, $this->trash()->count());
 	}
 
+	public function testUnreadableSubfolderOnlyDropsItsOwnEntry(): void
+	{
+		$this->createPage('keeper');
+		$this->fresh()->page('keeper')->delete();
+
+		$root   = $this->trash()->root();
+		$broken = $root . '/broken/data/sub';
+		Dir::make($broken);
+		F::write($broken . '/hidden.txt', 'x');
+		chmod($broken, 0000);
+
+		if (is_readable($broken) === true) {
+			chmod($broken, 0755);
+			$this->markTestSkipped('directory permissions are not enforced here');
+		}
+
+		try {
+			$this->trash()->flushIndex();
+
+			$keeper = $root . '/' . $this->trash()->items()[0]['trashId'];
+
+			// Dir::size() recurses and throws somewhere inside
+			// `broken`, but that must cost only its own bytes —
+			// measuring the root in one call would return 0 here
+			$this->assertSame(2, $this->trash()->count());
+			$this->assertSame(Dir::size($keeper), $this->trash()->totalSize());
+			$this->assertGreaterThan(0, $this->trash()->totalSize());
+		} finally {
+			chmod($broken, 0755);
+		}
+	}
+
 	public function testUnlistedNoteCoversWhatTheTableCannotShow(): void
 	{
 		$this->createPage('one');

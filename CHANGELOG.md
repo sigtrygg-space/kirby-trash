@@ -20,10 +20,11 @@
   removes them. It also covers the partial case, where the table
   used to show fewer rows than the badge counted without explaining
   the difference
-- An unreadable trash root no longer breaks the empty-trash dialog:
-  measuring the root degrades to 0 like every other reader, so the
-  Panel keeps explaining the problem through the root warning
-  instead of failing the request
+- An unreadable trash root no longer breaks the empty-trash dialog.
+  The trash is measured one entry at a time, so an unreadable root
+  reports 0 with the root warning explaining it, and an unreadable
+  folder inside a single entry costs only that entry's bytes
+  instead of zeroing the whole total
 
 ## 0.3.0 (2026-07-08)
 
