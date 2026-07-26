@@ -30,7 +30,7 @@ jobs:
           # tag and a release title, so accept nothing but a plain semver
           # string: that keeps shell metacharacters and newlines (which
           # would forge extra step outputs) out of every later step.
-          if [[ -n "$version" && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+          if [[ -n "$version" && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
             echo "::error::composer.json has an unusable version field"
             exit 1
           fi
@@ -60,9 +60,15 @@ jobs:
           VERSION: ${{ steps.composer.outputs.version }}
           REPOSITORY: ${{ github.repository }}
         run: |
+          # match the heading literally: `~` would treat the version as a
+          # regex, where `.` matches any character and a `+` from build
+          # metadata acts as a quantifier — the first silently pulls in a
+          # foreign section, the second misses the heading altogether and
+          # publishes the fallback note. The exit rule comes first so the
+          # section always ends at the next heading.
           awk -v ver="$VERSION" '
-            $0 ~ "^## " ver "( |$)" { flag = 1; next }
             /^## / && flag { exit }
+            $0 == "## " ver || index($0, "## " ver " ") == 1 { flag = 1; next }
             flag { print }
           ' CHANGELOG.md > release-notes.md
 
