@@ -103,10 +103,10 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									'columns'    => $trash->panelColumns(),
 									'canRestore' => $trash->can('restore'),
 									'canDelete'  => $trash->can('delete'),
-									// everything the trash occupies, incl.
-									// entries without a readable meta.json:
-									// they never make it into `items`, so the
-									// empty-trash button is gated on this
+									// number of entries in the trash, incl. the
+									// ones without a readable meta.json: they
+									// never make it into `items`, so the
+									// empty-trash button is gated on this count
 									// instead — otherwise nothing in the Panel
 									// could remove them
 									'total'      => $trash->count(),

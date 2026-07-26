@@ -53,7 +53,7 @@ export default {
     },
     canRestore: Boolean,
     canDelete: Boolean,
-    // everything the trash occupies, including entries whose
+    // number of entries in the trash, including the ones whose
     // meta.json is unreadable — those never reach `items`, so
     // gating the empty-trash button on the table rows would leave
     // no way to remove them from the Panel
