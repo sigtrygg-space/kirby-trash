@@ -4,7 +4,7 @@
       {{ $t("sigtrygg-space.kirby-trash.title") }}
       <template #buttons>
         <k-button
-          v-if="items.length > 0 && canDelete && !issue"
+          v-if="total > 0 && canDelete && !issue"
           icon="trash"
           variant="filled"
           theme="negative"
@@ -53,6 +53,14 @@ export default {
     },
     canRestore: Boolean,
     canDelete: Boolean,
+    // number of entries in the trash, including the ones whose
+    // meta.json is unreadable — those never reach `items`, so
+    // gating the empty-trash button on the table rows would leave
+    // no way to remove them from the Panel
+    total: {
+      type: Number,
+      default: 0
+    },
     postponeLabel: String,
     issue: String,
     cleaned: String

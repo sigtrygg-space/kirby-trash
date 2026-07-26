@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.1 (unreleased)
+
+- The red "cleanup required" badge no longer survives the click it
+  invites: Kirby builds the Panel areas before it calls the route
+  action but resolves the menu entries afterwards, so the badge is
+  computed lazily now and the response that just ran the cleanup
+  carries the updated badge instead of the pre-cleanup count
+- Entries whose meta.json is missing or unreadable — what an
+  interrupted deletion leaves behind — can be removed from the Panel
+  again: they never appear as table rows, so the empty-trash button
+  is gated on everything the trash root holds rather than on the
+  listed items. The confirmation dialog counts and measures the same
+  way and no longer offers to free "0 B" while such an entry sits on
+  disk
+
 ## 0.3.0 (2026-07-08)
 
 - Expired items no longer linger invisibly until someone opens the
