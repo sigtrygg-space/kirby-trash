@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.1 (unreleased)
+## 0.3.1 (2026-07-26)
 
 - The red "cleanup required" badge no longer survives the click it
   invites: Kirby builds the Panel areas before it calls the route
@@ -14,6 +14,17 @@
   listed items. The confirmation dialog counts and measures the same
   way and no longer offers to free "0 B" while such an entry sits on
   disk
+- The area no longer claims the trash is empty while entries it
+  cannot list occupy disk space — a note above the list says how
+  many there are, why they are missing and that emptying the trash
+  removes them. It also covers the partial case, where the table
+  used to show fewer rows than the badge counted without explaining
+  the difference
+- An unreadable trash root no longer breaks the empty-trash dialog.
+  The trash is measured one entry at a time, so an unreadable root
+  reports 0 with the root warning explaining it, and an unreadable
+  folder inside a single entry costs only that entry's bytes
+  instead of zeroing the whole total
 
 ## 0.3.0 (2026-07-08)
 

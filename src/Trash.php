@@ -618,10 +618,40 @@ class Trash
 	 * root rather than summed from the stored `size` fields, so
 	 * entries without a readable meta.json count too — the
 	 * empty-trash dialog promises to free exactly this much.
+	 * An unreadable root reports 0, like items() and count(), and the
+	 * Panel area explains the problem via rootIssue(). Measured one
+	 * entry at a time because Dir::size() recurses and throws on any
+	 * unreadable folder in the tree: summing the root in one call
+	 * would let a single bad subfolder discard every healthy entry's
+	 * bytes, where items() drops only the entry it cannot read.
 	 */
 	public function totalSize(): int
 	{
-		return Dir::size($this->root()) ?: 0;
+		$root = $this->root();
+
+		if (is_dir($root) === false) {
+			return 0;
+		}
+
+		try {
+			$entries = Dir::read($root);
+		} catch (Throwable) {
+			return 0;
+		}
+
+		$size = 0;
+
+		foreach ($entries as $entry) {
+			$path = $root . '/' . $entry;
+
+			try {
+				$size += (is_dir($path) === true ? Dir::size($path) : F::size($path)) ?: 0;
+			} catch (Throwable) {
+				continue;
+			}
+		}
+
+		return $size;
 	}
 
 	/**
@@ -655,6 +685,25 @@ class Trash
 		}
 
 		return $count;
+	}
+
+	/**
+	 * Note about entries that occupy the trash but never reach the
+	 * table: their meta.json is missing or unreadable, so items()
+	 * skips them while count() — and with it the menu badge — still
+	 * counts them. Without the note the view would claim an empty
+	 * trash next to an active empty-trash button. Null when
+	 * everything on disk is listed, which is the normal case.
+	 */
+	public function unlistedLabel(): string|null
+	{
+		$unlisted = $this->count() - count($this->items());
+
+		if ($unlisted < 1) {
+			return null;
+		}
+
+		return I18n::translateCount('sigtrygg-space.kirby-trash.unlisted', $unlisted);
 	}
 
 	/**

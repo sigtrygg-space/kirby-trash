@@ -16,6 +16,11 @@
     "sigtrygg-space.kirby-trash.notification.postponed": "Deletion postponed",
     "sigtrygg-space.kirby-trash.cleaned.one": "1 expired item has just been removed by the automatic cleanup.",
     "sigtrygg-space.kirby-trash.cleaned.many": "{count} expired items have just been removed by the automatic cleanup.",
+    "sigtrygg-space.kirby-trash.unlisted": [
+        "{count} entries cannot be listed: their metadata is missing or unreadable — usually what an interrupted deletion leaves behind. Their data still occupies disk space; emptying the trash removes them.",
+        "1 entry cannot be listed: its metadata is missing or unreadable — usually what an interrupted deletion leaves behind. Its data still occupies disk space; emptying the trash removes it.",
+        "{count} entries cannot be listed: their metadata is missing or unreadable — usually what an interrupted deletion leaves behind. Their data still occupies disk space; emptying the trash removes them."
+    ],
     "sigtrygg-space.kirby-trash.deletedBy": "Deleted by",
     "sigtrygg-space.kirby-trash.column.title": "Title",
     "sigtrygg-space.kirby-trash.column.path": "Original path",

@@ -16,6 +16,11 @@
     "sigtrygg-space.kirby-trash.notification.postponed": "Löschung aufgeschoben",
     "sigtrygg-space.kirby-trash.cleaned.one": "1 abgelaufener Eintrag wurde soeben von der automatischen Bereinigung entfernt.",
     "sigtrygg-space.kirby-trash.cleaned.many": "{count} abgelaufene Einträge wurden soeben von der automatischen Bereinigung entfernt.",
+    "sigtrygg-space.kirby-trash.unlisted": [
+        "{count} Einträge können nicht angezeigt werden: Die Metadaten fehlen oder sind nicht lesbar — meist Reste einer abgebrochenen Löschung. Die Daten belegen weiterhin Speicherplatz; das Leeren des Papierkorbs entfernt sie.",
+        "1 Eintrag kann nicht angezeigt werden: Die Metadaten fehlen oder sind nicht lesbar — meist der Rest einer abgebrochenen Löschung. Die Daten belegen weiterhin Speicherplatz; das Leeren des Papierkorbs entfernt ihn.",
+        "{count} Einträge können nicht angezeigt werden: Die Metadaten fehlen oder sind nicht lesbar — meist Reste einer abgebrochenen Löschung. Die Daten belegen weiterhin Speicherplatz; das Leeren des Papierkorbs entfernt sie."
+    ],
     "sigtrygg-space.kirby-trash.deletedBy": "Gelöscht von",
     "sigtrygg-space.kirby-trash.column.title": "Titel",
     "sigtrygg-space.kirby-trash.column.path": "Ursprünglicher Pfad",

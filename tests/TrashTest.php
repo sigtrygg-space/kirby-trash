@@ -256,19 +256,19 @@ final class TrashTest extends TestCase
 		// POSIX permission problems skip only this part and still
 		// run the portable cases above
 
-		// permission checks are bypassed for the superuser
-		if (function_exists('posix_geteuid') === true && posix_geteuid() === 0) {
-			$this->markTestSkipped('permission checks are bypassed when running as root');
-		}
-
-		// chmod() cannot revoke directory permissions on Windows
-		if (DIRECTORY_SEPARATOR === '\\') {
-			$this->markTestSkipped('POSIX permissions are not enforced on Windows');
-		}
-
 		$locked = $this->tmp . '/locked';
 		Dir::make($locked);
 		chmod($locked, 0000);
+
+		// the superuser, Windows and filesystems that carry no POSIX
+		// modes (WSL DrvFs, some bind and network mounts) all leave
+		// the directory usable. Checking whether the chmod took
+		// effect covers every one of them; enumerating the
+		// environments instead would fail here rather than skip.
+		if (is_readable($locked) === true || is_writable($locked) === true) {
+			chmod($locked, 0755);
+			$this->markTestSkipped('directory permissions are not enforced here');
+		}
 
 		try {
 			$this->kirby = $this->app([
@@ -282,6 +282,10 @@ final class TrashTest extends TestCase
 			$this->assertStringContainsString('not readable', $this->trash()->rootIssue());
 			$this->assertSame([], $this->trash()->items());
 			$this->assertSame(0, $this->trash()->count());
+
+			// every reader degrades to "empty", incl. the one the
+			// empty-trash dialog calls right after count()
+			$this->assertSame(0, $this->trash()->totalSize());
 		} finally {
 			chmod($locked, 0755);
 		}
@@ -526,10 +530,79 @@ final class TrashTest extends TestCase
 		$this->assertCount(0, $props['items']);
 		$this->assertSame(1, $props['total']);
 
+		// ... and the view accounts for the entry instead of
+		// claiming an empty trash right below an active button
+		$this->assertStringContainsString('1 entry cannot be listed', $props['unlisted']);
+
 		$dialogs = $area['dialogs'];
 		$this->assertStringContainsString('1 item ', $dialogs['trash.empty']['load']()['props']['text']);
 		$this->assertSame('The trash has been emptied', $dialogs['trash.empty']['submit']()['message']);
 		$this->assertSame(0, $this->trash()->count());
+	}
+
+	public function testUnreadableSubfolderOnlyDropsItsOwnEntry(): void
+	{
+		$this->createPage('keeper');
+		$this->fresh()->page('keeper')->delete();
+
+		$root   = $this->trash()->root();
+		$broken = $root . '/broken/data/sub';
+		Dir::make($broken);
+		F::write($broken . '/hidden.txt', 'x');
+		chmod($broken, 0000);
+
+		if (is_readable($broken) === true) {
+			chmod($broken, 0755);
+			$this->markTestSkipped('directory permissions are not enforced here');
+		}
+
+		try {
+			$this->trash()->flushIndex();
+
+			$keeper = $root . '/' . $this->trash()->items()[0]['trashId'];
+
+			// Dir::size() recurses and throws somewhere inside
+			// `broken`, but that must cost only its own bytes —
+			// measuring the root in one call would return 0 here
+			$this->assertSame(2, $this->trash()->count());
+			$this->assertSame(Dir::size($keeper), $this->trash()->totalSize());
+			$this->assertGreaterThan(0, $this->trash()->totalSize());
+		} finally {
+			chmod($broken, 0755);
+		}
+	}
+
+	public function testUnlistedNoteCoversWhatTheTableCannotShow(): void
+	{
+		$this->createPage('one');
+		$this->createPage('two');
+		$this->fresh()->page('one')->delete();
+		$this->fresh()->page('two')->delete();
+
+		// everything on disk is listed: nothing to explain
+		$this->assertNull($this->trash()->unlistedLabel());
+
+		$break = function (): void {
+			$root = $this->trash()->root() . '/' . $this->trash()->items()[0]['trashId'];
+			F::remove($root . '/meta.json');
+			$this->trash()->flushIndex();
+		};
+
+		// with one of the two broken the table still renders, so the
+		// note is the only thing accounting for the rest of the badge
+		$break();
+		$this->assertCount(1, $this->trash()->items());
+		$this->assertSame(2, $this->trash()->count());
+		$this->assertStringContainsString(
+			'1 entry cannot be listed',
+			$this->trash()->unlistedLabel()
+		);
+
+		$break();
+		$this->assertStringContainsString(
+			'2 entries cannot be listed',
+			$this->trash()->unlistedLabel()
+		);
 	}
 
 	public function testMenuBadgeShowsItemCount(): void

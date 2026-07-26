@@ -26,6 +26,18 @@
       <k-box v-if="cleaned" class="k-trash-cleaned" theme="info" icon="check">
         {{ cleaned }}
       </k-box>
+      <!-- entries on disk that never become rows because their
+           meta.json is unreadable: the badge counts them, so the
+           view has to account for them instead of pretending the
+           trash holds nothing but what the table shows -->
+      <k-box
+        v-if="unlisted"
+        class="k-trash-unlisted"
+        theme="warning"
+        icon="alert"
+      >
+        {{ unlisted }}
+      </k-box>
       <k-collection
         v-if="items.length > 0"
         layout="table"
@@ -33,7 +45,9 @@
         :items="rows"
         :help="$t('sigtrygg-space.kirby-trash.help')"
       />
-      <k-empty v-else icon="trash">
+      <!-- only a genuinely empty trash says so — with unlistable
+           entries left, the note above explains the state instead -->
+      <k-empty v-else-if="total === 0" icon="trash">
         {{ $t("sigtrygg-space.kirby-trash.empty") }}
       </k-empty>
     </template>
@@ -63,7 +77,10 @@ export default {
     },
     postponeLabel: String,
     issue: String,
-    cleaned: String
+    cleaned: String,
+    // note about entries counted by `total` that `items` cannot
+    // show, or null when the table covers everything on disk
+    unlisted: String
   },
   computed: {
     // all dialogs are defined in the plugin's PHP backend and
