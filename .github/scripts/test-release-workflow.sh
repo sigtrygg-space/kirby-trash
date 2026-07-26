@@ -40,7 +40,7 @@ import yaml
 
 workflow, work = sys.argv[1], pathlib.Path(sys.argv[2])
 steps  = yaml.safe_load(open(workflow))["jobs"]["release"]["steps"]
-blocks = {s["name"]: s["run"] for s in steps if s.get("name") and "run" in s}
+byname = {s["name"]: s for s in steps if s.get("name") and "run" in s}
 
 wanted = {
 	"Read the version from composer.json":          "version.sh",
@@ -48,15 +48,24 @@ wanted = {
 	"Extract the release notes from the CHANGELOG": "notes.sh",
 }
 
-if missing := [name for name in wanted if name not in blocks]:
+if missing := [name for name in wanted if name not in byname]:
 	sys.exit("step(s) missing from %s: %s" % (workflow, ", ".join(missing)))
 
 # the rule the workflow documents in a comment, enforced here
-leaky = sorted(name for name, run in blocks.items() if "${{" in run)
+leaky = sorted(name for name, step in byname.items() if "${{" in step["run"])
 (work / "leaky.txt").write_text("\n".join(leaky))
 
+# A run: block without a `shell:` key is executed by GitHub as
+# `bash -e {0}`, which is what this harness mirrors. Declaring
+# `shell: bash` would switch it to
+# `bash --noprofile --norc -eo pipefail {0}` — different enough
+# (pipefail) that the harness would stop matching production, so
+# report any step that sets one instead of silently drifting.
+shells = sorted(name for name in wanted if byname[name].get("shell"))
+(work / "shells.txt").write_text("\n".join(shells))
+
 for name, filename in wanted.items():
-	(work / filename).write_text(blocks[name])
+	(work / filename).write_text(byname[name]["run"])
 PY
 then
 	echo "could not extract the steps from $WORKFLOW"
@@ -126,6 +135,13 @@ if [ -z "${leaky// /}" ]; then
 	ok 'no ${{ }} interpolation inside any run: block'
 else
 	no "run: blocks interpolate expressions (they become shell code): $leaky"
+fi
+
+shells="$(tr '\n' ' ' < "$WORK/shells.txt")"
+if [ -z "${shells// /}" ]; then
+	ok "every tested step runs under the default shell this harness mirrors"
+else
+	no "step(s) declare shell:, so 'bash -e' no longer matches them — update the flags here: $shells"
 fi
 
 # --------------------------------------------------------- version gate

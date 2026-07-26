@@ -58,5 +58,6 @@ jobs:
 
       - name: Exercise the release workflow's run blocks
         run: |
-          python3 -c 'import yaml' 2> /dev/null || pip install --quiet pyyaml
-          .github/scripts/test-release-workflow.sh
+          # -m pip installs into the same interpreter the harness parses with
+          python3 -c 'import yaml' 2> /dev/null || python3 -m pip install --quiet pyyaml
+          bash .github/scripts/test-release-workflow.sh
