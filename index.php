@@ -110,6 +110,9 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									// instead — otherwise nothing in the Panel
 									// could remove them
 									'total'      => $trash->count(),
+									// note about the entries behind the
+									// difference between `total` and `items`
+									'unlisted'   => $trash->unlistedLabel(),
 									// null when retention is disabled —
 									// then there is nothing to postpone
 									'postponeLabel' => $trash->postponeLabel(),

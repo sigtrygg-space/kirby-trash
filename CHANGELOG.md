@@ -14,6 +14,12 @@
   listed items. The confirmation dialog counts and measures the same
   way and no longer offers to free "0 B" while such an entry sits on
   disk
+- The area no longer claims the trash is empty while entries it
+  cannot list occupy disk space — a note above the list says how
+  many there are, why they are missing and that emptying the trash
+  removes them. It also covers the partial case, where the table
+  used to show fewer rows than the badge counted without explaining
+  the difference
 - An unreadable trash root no longer breaks the empty-trash dialog:
   measuring the root degrades to 0 like every other reader, so the
   Panel keeps explaining the problem through the root warning

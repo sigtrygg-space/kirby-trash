@@ -530,10 +530,47 @@ final class TrashTest extends TestCase
 		$this->assertCount(0, $props['items']);
 		$this->assertSame(1, $props['total']);
 
+		// ... and the view accounts for the entry instead of
+		// claiming an empty trash right below an active button
+		$this->assertStringContainsString('1 entry cannot be listed', $props['unlisted']);
+
 		$dialogs = $area['dialogs'];
 		$this->assertStringContainsString('1 item ', $dialogs['trash.empty']['load']()['props']['text']);
 		$this->assertSame('The trash has been emptied', $dialogs['trash.empty']['submit']()['message']);
 		$this->assertSame(0, $this->trash()->count());
+	}
+
+	public function testUnlistedNoteCoversWhatTheTableCannotShow(): void
+	{
+		$this->createPage('one');
+		$this->createPage('two');
+		$this->fresh()->page('one')->delete();
+		$this->fresh()->page('two')->delete();
+
+		// everything on disk is listed: nothing to explain
+		$this->assertNull($this->trash()->unlistedLabel());
+
+		$break = function (): void {
+			$root = $this->trash()->root() . '/' . $this->trash()->items()[0]['trashId'];
+			F::remove($root . '/meta.json');
+			$this->trash()->flushIndex();
+		};
+
+		// with one of the two broken the table still renders, so the
+		// note is the only thing accounting for the rest of the badge
+		$break();
+		$this->assertCount(1, $this->trash()->items());
+		$this->assertSame(2, $this->trash()->count());
+		$this->assertStringContainsString(
+			'1 entry cannot be listed',
+			$this->trash()->unlistedLabel()
+		);
+
+		$break();
+		$this->assertStringContainsString(
+			'2 entries cannot be listed',
+			$this->trash()->unlistedLabel()
+		);
 	}
 
 	public function testMenuBadgeShowsItemCount(): void

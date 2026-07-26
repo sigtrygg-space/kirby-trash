@@ -671,6 +671,25 @@ class Trash
 	}
 
 	/**
+	 * Note about entries that occupy the trash but never reach the
+	 * table: their meta.json is missing or unreadable, so items()
+	 * skips them while count() — and with it the menu badge — still
+	 * counts them. Without the note the view would claim an empty
+	 * trash next to an active empty-trash button. Null when
+	 * everything on disk is listed, which is the normal case.
+	 */
+	public function unlistedLabel(): string|null
+	{
+		$unlisted = $this->count() - count($this->items());
+
+		if ($unlisted < 1) {
+			return null;
+		}
+
+		return I18n::translateCount('sigtrygg-space.kirby-trash.unlisted', $unlisted);
+	}
+
+	/**
 	 * Badge for the Panel menu button showing the number of live
 	 * (not yet expired) items, or null when the badge is disabled
 	 * or the trash is empty. The option accepts `true`, `false` or

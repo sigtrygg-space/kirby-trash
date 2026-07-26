@@ -18,9 +18,10 @@
    (.k-dialog-buttons), so the action buttons match the close
    button; auto-fit stacks them on narrow screens instead of
    overflowing */
-/* the "N expired items were just removed" note sits above the
-   list / empty state and needs a gap towards it */
-.k-trash-view .k-trash-cleaned {
+/* the cleanup report and the unlistable-entries note sit above the
+   list / empty state and need a gap towards it (and each other) */
+.k-trash-view .k-trash-cleaned,
+.k-trash-view .k-trash-unlisted {
   margin-bottom: var(--spacing-6);
 }
 
