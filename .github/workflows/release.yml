@@ -22,14 +22,33 @@ jobs:
 
       - name: Read the version from composer.json
         id: composer
-        run: echo "version=$(jq -r '.version // empty' composer.json)" >> "$GITHUB_OUTPUT"
+        run: |
+          version="$(jq -r '.version // empty' composer.json)"
 
+          # composer.json is repository content, so the version field is
+          # attacker-influenceable via any merged PR. It ends up in a git
+          # tag and a release title, so accept nothing but a plain semver
+          # string: that keeps shell metacharacters and newlines (which
+          # would forge extra step outputs) out of every later step.
+          if [[ -n "$version" && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::composer.json has an unusable version field"
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # NOTE: never interpolate `${{ … }}` inside a `run:` block — GitHub
+      # substitutes it textually before bash parses the script, which turns
+      # any value into executable shell. Pass values through `env:` and
+      # reference them as quoted shell variables, as all steps below do.
       - name: Check whether the version is already tagged
         id: tag
+        env:
+          VERSION: ${{ steps.composer.outputs.version }}
         run: |
-          if [ -z "${{ steps.composer.outputs.version }}" ]; then
+          if [ -z "$VERSION" ]; then
             echo "new=false" >> "$GITHUB_OUTPUT"
-          elif git ls-remote --exit-code --tags origin "refs/tags/v${{ steps.composer.outputs.version }}" > /dev/null; then
+          elif git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" > /dev/null; then
             echo "new=false" >> "$GITHUB_OUTPUT"
           else
             echo "new=true" >> "$GITHUB_OUTPUT"
@@ -37,15 +56,24 @@ jobs:
 
       - name: Extract the release notes from the CHANGELOG
         if: steps.tag.outputs.new == 'true'
+        env:
+          VERSION: ${{ steps.composer.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          awk -v ver="${{ steps.composer.outputs.version }}" '
-            $0 ~ "^## " ver "( |$)" { flag = 1; next }
+          # match the heading literally: `~` would treat the version as a
+          # regex, where `.` matches any character and a `+` from build
+          # metadata acts as a quantifier — the first silently pulls in a
+          # foreign section, the second misses the heading altogether and
+          # publishes the fallback note. The exit rule comes first so the
+          # section always ends at the next heading.
+          awk -v ver="$VERSION" '
             /^## / && flag { exit }
+            $0 == "## " ver || index($0, "## " ver " ") == 1 { flag = 1; next }
             flag { print }
           ' CHANGELOG.md > release-notes.md
 
           if [ ! -s release-notes.md ]; then
-            echo "See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)." > release-notes.md
+            echo "See the [CHANGELOG](https://github.com/$REPOSITORY/blob/main/CHANGELOG.md)." > release-notes.md
           fi
 
       - name: Create the tag and the release
