@@ -40,7 +40,8 @@ import yaml
 
 workflow, work = sys.argv[1], pathlib.Path(sys.argv[2])
 steps  = yaml.safe_load(open(workflow))["jobs"]["release"]["steps"]
-byname = {s["name"]: s for s in steps if s.get("name") and "run" in s}
+runs   = [(i, s) for i, s in enumerate(steps) if "run" in s]
+byname = {s["name"]: s for _, s in runs if s.get("name")}
 
 wanted = {
 	"Read the version from composer.json":          "version.sh",
@@ -51,8 +52,16 @@ wanted = {
 if missing := [name for name in wanted if name not in byname]:
 	sys.exit("step(s) missing from %s: %s" % (workflow, ", ".join(missing)))
 
-# the rule the workflow documents in a comment, enforced here
-leaky = sorted(name for name, step in byname.items() if "${{" in step["run"])
+# The rule the workflow documents in a comment, enforced here. Scans
+# every run: block rather than the named ones: `name:` is optional on a
+# step, and an unnamed step interpolating an expression is the same
+# vulnerability as a named one — deriving this from the name-keyed
+# lookup below would silently exempt it.
+leaky = sorted(
+	s.get("name") or s.get("id") or "unnamed step #%d" % (i + 1)
+	for i, s in runs
+	if "${{" in s["run"]
+)
 (work / "leaky.txt").write_text("\n".join(leaky))
 
 # A run: block without a `shell:` key is executed by GitHub as
