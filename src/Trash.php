@@ -618,10 +618,23 @@ class Trash
 	 * root rather than summed from the stored `size` fields, so
 	 * entries without a readable meta.json count too — the
 	 * empty-trash dialog promises to free exactly this much.
+	 * An unreadable root reports 0, like items() and count():
+	 * Dir::size() walks the root itself and would throw otherwise,
+	 * and the Panel area explains the problem via rootIssue().
 	 */
 	public function totalSize(): int
 	{
-		return Dir::size($this->root()) ?: 0;
+		$root = $this->root();
+
+		if (is_dir($root) === false) {
+			return 0;
+		}
+
+		try {
+			return Dir::size($root) ?: 0;
+		} catch (Throwable) {
+			return 0;
+		}
 	}
 
 	/**

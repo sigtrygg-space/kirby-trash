@@ -256,19 +256,19 @@ final class TrashTest extends TestCase
 		// POSIX permission problems skip only this part and still
 		// run the portable cases above
 
-		// permission checks are bypassed for the superuser
-		if (function_exists('posix_geteuid') === true && posix_geteuid() === 0) {
-			$this->markTestSkipped('permission checks are bypassed when running as root');
-		}
-
-		// chmod() cannot revoke directory permissions on Windows
-		if (DIRECTORY_SEPARATOR === '\\') {
-			$this->markTestSkipped('POSIX permissions are not enforced on Windows');
-		}
-
 		$locked = $this->tmp . '/locked';
 		Dir::make($locked);
 		chmod($locked, 0000);
+
+		// the superuser, Windows and filesystems that carry no POSIX
+		// modes (WSL DrvFs, some bind and network mounts) all leave
+		// the directory usable. Checking whether the chmod took
+		// effect covers every one of them; enumerating the
+		// environments instead would fail here rather than skip.
+		if (is_readable($locked) === true || is_writable($locked) === true) {
+			chmod($locked, 0755);
+			$this->markTestSkipped('directory permissions are not enforced here');
+		}
 
 		try {
 			$this->kirby = $this->app([
@@ -282,6 +282,10 @@ final class TrashTest extends TestCase
 			$this->assertStringContainsString('not readable', $this->trash()->rootIssue());
 			$this->assertSame([], $this->trash()->items());
 			$this->assertSame(0, $this->trash()->count());
+
+			// every reader degrades to "empty", incl. the one the
+			// empty-trash dialog calls right after count()
+			$this->assertSame(0, $this->trash()->totalSize());
 		} finally {
 			chmod($locked, 0755);
 		}

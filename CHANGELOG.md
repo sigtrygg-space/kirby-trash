@@ -14,6 +14,10 @@
   listed items. The confirmation dialog counts and measures the same
   way and no longer offers to free "0 B" while such an entry sits on
   disk
+- An unreadable trash root no longer breaks the empty-trash dialog:
+  measuring the root degrades to 0 like every other reader, so the
+  Panel keeps explaining the problem through the root warning
+  instead of failing the request
 
 ## 0.3.0 (2026-07-08)
 
