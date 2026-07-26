@@ -10,6 +10,8 @@ use Kirby\Exception\DuplicateException;
 use Kirby\Exception\NotFoundException;
 use Kirby\Filesystem\Dir;
 use Kirby\Filesystem\F;
+use Kirby\Panel\Menu;
+use Kirby\Panel\Panel;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
@@ -476,6 +478,60 @@ final class TrashTest extends TestCase
 		$this->assertNull($props['cleaned']);
 	}
 
+	public function testMenuBadgeIsResolvedAfterTheViewAction(): void
+	{
+		$this->createPage('stale');
+		$this->fresh()->page('stale')->delete();
+		$this->backdateItem('stale', 40);
+
+		$area = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+
+		// nothing but expired items: the red call to action
+		$this->assertSame(
+			['theme' => 'negative', 'text' => 1],
+			$this->menuEntry($area)['badge']
+		);
+
+		// Kirby builds the areas before it calls the route action but
+		// resolves the menu entries afterwards, so the badge of the
+		// very response that ran the cleanup must be gone — not the
+		// stale red one that invited the click in the first place
+		$area['views'][0]['action']();
+
+		$this->assertCount(0, $this->trash()->items());
+		$this->assertArrayNotHasKey('badge', $this->menuEntry($area));
+	}
+
+	public function testEntriesWithoutMetaStayRemovableFromThePanel(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		// an interrupted deletion can leave the copied data behind
+		// without a meta.json: invisible to items(), still on disk
+		$trashId = $this->trash()->items()[0]['trashId'];
+		F::remove($this->trash()->root() . '/' . $trashId . '/meta.json');
+		$this->trash()->flushIndex();
+
+		$this->assertCount(0, $this->trash()->items());
+		$this->assertSame(1, $this->trash()->count());
+		$this->assertGreaterThan(0, $this->trash()->totalSize());
+
+		$area  = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$props = $area['views'][0]['action']()['props'];
+
+		// the header button is gated on `total` rather than on the
+		// table rows, so the one action that can remove such an entry
+		// stays reachable instead of leaving it stuck on disk
+		$this->assertCount(0, $props['items']);
+		$this->assertSame(1, $props['total']);
+
+		$dialogs = $area['dialogs'];
+		$this->assertStringContainsString('1 item ', $dialogs['trash.empty']['load']()['props']['text']);
+		$this->assertSame('The trash has been emptied', $dialogs['trash.empty']['submit']()['message']);
+		$this->assertSame(0, $this->trash()->count());
+	}
+
 	public function testMenuBadgeShowsItemCount(): void
 	{
 		$this->createPage('note');
@@ -487,7 +543,10 @@ final class TrashTest extends TestCase
 
 		// the area menu carries the badge into the button props
 		$area = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
-		$this->assertSame(['badge' => ['theme' => 'notice', 'text' => 1]], $area['menu']);
+		$this->assertSame(
+			['theme' => 'notice', 'text' => 1],
+			$this->menuEntry($area)['badge']
+		);
 
 		$trash->emptyTrash();
 		$this->assertSame(0, $trash->count());
@@ -955,6 +1014,25 @@ final class TrashTest extends TestCase
 	{
 		$this->expectException(NotFoundException::class);
 		$this->trash()->item('../../etc/passwd');
+	}
+
+	/**
+	 * The trash menu entry, resolved the way Kirby resolves it on
+	 * every Panel request: through Panel\Menu, which runs after the
+	 * route action. Panel\Menu::entry() drops empty values, so a
+	 * missing badge means no `badge` key at all.
+	 */
+	protected function menuEntry(array $area): array
+	{
+		$menu = new Menu(['trash' => Panel::area('trash', $area)]);
+
+		foreach ($menu->entries() as $entry) {
+			if (is_array($entry) === true && ($entry['link'] ?? null) === 'trash') {
+				return $entry;
+			}
+		}
+
+		$this->fail('the trash menu entry is missing');
 	}
 
 	protected function backdateItem(string $pageId, int $days): void

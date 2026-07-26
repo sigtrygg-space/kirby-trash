@@ -613,11 +613,15 @@ class Trash
 		return I18n::translateCount('sigtrygg-space.kirby-trash.postpone', $days);
 	}
 
+	/**
+	 * Number of bytes the trash occupies on disk. Measured on the
+	 * root rather than summed from the stored `size` fields, so
+	 * entries without a readable meta.json count too — the
+	 * empty-trash dialog promises to free exactly this much.
+	 */
 	public function totalSize(): int
 	{
-		return array_sum(
-			array_map(fn (array $item) => (int)($item['size'] ?? 0), $this->items())
-		);
+		return Dir::size($this->root()) ?: 0;
 	}
 
 	/**

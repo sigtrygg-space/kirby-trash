@@ -77,9 +77,14 @@ App::plugin('sigtrygg-space/kirby-trash', [
 				'label' => I18n::translate('sigtrygg-space.kirby-trash.title', 'Trash'),
 				'icon'  => 'trash',
 				// an array is spread into the menu button props by
-				// Kirby's Panel\Menu; a null badge is filtered out
+				// Kirby's Panel\Menu; a null badge is filtered out.
+				// It has to stay a closure: areas are built before the
+				// route action runs, so an eagerly computed badge would
+				// still show the pre-cleanup count in the very response
+				// whose view action just ran the cleanup. Panel\Menu
+				// resolves the closure afterwards, per request.
 				'menu'  => $trash->enabled() === true && $trash->can('access')
-					? ['badge' => $trash->badge()]
+					? fn () => ['badge' => Trash::instance()->badge()]
 					: false,
 				'link'  => 'trash',
 				'views' => [
@@ -98,6 +103,13 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									'columns'    => $trash->panelColumns(),
 									'canRestore' => $trash->can('restore'),
 									'canDelete'  => $trash->can('delete'),
+									// everything the trash occupies, incl.
+									// entries without a readable meta.json:
+									// they never make it into `items`, so the
+									// empty-trash button is gated on this
+									// instead — otherwise nothing in the Panel
+									// could remove them
+									'total'      => $trash->count(),
 									// null when retention is disabled —
 									// then there is nothing to postpone
 									'postponeLabel' => $trash->postponeLabel(),
@@ -273,7 +285,9 @@ App::plugin('sigtrygg-space/kirby-trash', [
 							$trash = Trash::instance();
 							$trash->ensure('delete');
 
-							$count = count($trash->items());
+							// counts what emptying actually removes —
+							// broken entries without meta.json included
+							$count = $trash->count();
 							$key   = $count === 1 ? 'one' : 'many';
 
 							return [
