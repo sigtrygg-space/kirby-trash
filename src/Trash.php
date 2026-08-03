@@ -317,6 +317,9 @@ class Trash
 				'parentUuid'   => $parent instanceof Page ? $this->uuidOf($parent, generate: true) : null,
 				'uuid'         => $this->uuidOf($file),
 				'relativePath' => $file->filename(),
+				// content-sniffed once here, so listing the trash
+				// doesn't have to re-sniff every payload per request
+				'mime'         => Mime::type($file->root()),
 			]);
 		} catch (Throwable $e) {
 			Dir::remove($itemRoot);
@@ -1068,7 +1071,12 @@ class Trash
 			];
 		}
 
-		$type = F::type($meta['relativePath'] ?? '') ?? 'file';
+		// pass the extension, not the filename: F::type() treats any
+		// 2-4 character input as a literal extension, so a short
+		// filename like `a.js` would be looked up verbatim and miss
+		$filename  = $meta['relativePath'] ?? null;
+		$extension = is_string($filename) === true ? F::extension($filename) : '';
+		$type      = ($extension === '' ? null : F::type($extension)) ?? 'file';
 
 		return [
 			'icon'  => $type,
@@ -1088,9 +1096,13 @@ class Trash
 	/**
 	 * The image file behind an item's preview, or null when there
 	 * is none: previews are limited to file items whose payload is
-	 * sniffed (never extension-guessed) as a supported image type
+	 * a supported image type — decided by content, never by file
+	 * extension. Listing trusts the MIME type sniffed at trash time
+	 * (re-sniffing every payload on every Panel request adds up);
+	 * the endpoint passes `$sniff` to re-validate the actual bytes
+	 * before anything is fed to the thumb driver.
 	 */
-	protected function previewSource(array $meta): string|null
+	protected function previewSource(array $meta, bool $sniff = false): string|null
 	{
 		if ($this->kirby->option('sigtrygg-space.kirby-trash.previews', true) !== true) {
 			return null;
@@ -1101,10 +1113,14 @@ class Trash
 		}
 
 		// the plain filename for file items; guard against
-		// crafted metadata anyway
-		$filename = $meta['relativePath'] ?? '';
+		// crafted or corrupted metadata anyway
+		$filename = $meta['relativePath'] ?? null;
 
-		if ($filename === '' || $filename !== basename($filename)) {
+		if (
+			is_string($filename) === false
+			|| $filename === ''
+			|| $filename !== basename($filename)
+		) {
 			return null;
 		}
 
@@ -1114,7 +1130,10 @@ class Trash
 			return null;
 		}
 
-		$mime = Mime::type($source);
+		$mime = $sniff === false && is_string($meta['mime'] ?? null) === true
+			? $meta['mime']
+			// items trashed before the mime field existed
+			: Mime::type($source);
 
 		if (in_array($mime, static::PREVIEW_MIMES, true) === false) {
 			return null;
@@ -1167,7 +1186,10 @@ class Trash
 		$id = $this->validateId($id);
 
 		try {
-			$source = $this->previewSource($this->item($id));
+			// sniff: re-validate the actual payload bytes before
+			// they are fed to the thumb driver — the listing only
+			// checked the mime recorded at trash time
+			$source = $this->previewSource($this->item($id), sniff: true);
 		} catch (Throwable) {
 			$source = null;
 		}
@@ -1188,6 +1210,10 @@ class Trash
 					'format' => 'jpg',
 				]);
 			} catch (Throwable) {
+				// a failed generation may leave a partial file at the
+				// final path, which every later request would happily
+				// serve — remove it so the next request retries
+				F::remove($thumb);
 				throw $this->notFound();
 			}
 		}
