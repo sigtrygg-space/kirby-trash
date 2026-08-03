@@ -13,6 +13,8 @@ use Kirby\Exception\NotFoundException;
 use Kirby\Exception\PermissionException;
 use Kirby\Filesystem\Dir;
 use Kirby\Filesystem\F;
+use Kirby\Filesystem\Mime;
+use Kirby\Http\Response;
 use Kirby\Toolkit\I18n;
 use Kirby\Toolkit\Str;
 use Kirby\Uuid\Uuid;
@@ -25,6 +27,25 @@ use Throwable;
 class Trash
 {
 	public const DEFAULT_RETENTION_DAYS = 30;
+
+	/**
+	 * Edge length of the square preview thumbnails; generous enough
+	 * for retina table rows, small enough to stay a few KB as JPEG
+	 */
+	public const PREVIEW_SIZE = 400;
+
+	/**
+	 * Image types the preview endpoint accepts, by sniffed MIME type
+	 * (never by extension). SVG is deliberately absent: it can carry
+	 * script content and would be streamed to the browser as-is.
+	 */
+	public const PREVIEW_MIMES = [
+		'image/jpeg',
+		'image/png',
+		'image/gif',
+		'image/webp',
+		'image/avif',
+	];
 
 	protected static self|null $instance = null;
 
@@ -296,6 +317,9 @@ class Trash
 				'parentUuid'   => $parent instanceof Page ? $this->uuidOf($parent, generate: true) : null,
 				'uuid'         => $this->uuidOf($file),
 				'relativePath' => $file->filename(),
+				// content-sniffed once here, so listing the trash
+				// doesn't have to re-sniff every payload per request
+				'mime'         => Mime::type($file->root()),
 			]);
 		} catch (Throwable $e) {
 			Dir::remove($itemRoot);
@@ -453,6 +477,7 @@ class Trash
 		}
 
 		Dir::remove($itemRoot);
+		$this->removePreview($meta['trashId']);
 		$this->flushIndex();
 		$this->flushCaches();
 	}
@@ -470,6 +495,7 @@ class Trash
 		}
 
 		Dir::remove($root);
+		$this->removePreview($id);
 		$this->flushIndex();
 	}
 
@@ -490,6 +516,7 @@ class Trash
 			is_dir($path) === true ? Dir::remove($path) : F::remove($path);
 		}
 
+		Dir::remove($this->previewRoot());
 		$this->flushIndex();
 	}
 
@@ -925,6 +952,15 @@ class Trash
 	public function panelColumns(): array
 	{
 		return [
+			// resolved by the Panel's own k-image-field-preview cell,
+			// which renders k-item-image: an image frame when the row
+			// value carries a `src`, an icon frame otherwise
+			'image' => [
+				'label'  => ' ',
+				'mobile' => true,
+				'type'   => 'image',
+				'width'  => 'var(--table-row-height)',
+			],
 			'title' => [
 				'label'  => I18n::translate('sigtrygg-space.kirby-trash.column.title'),
 				'mobile' => true,
@@ -988,6 +1024,9 @@ class Trash
 
 		return [
 			'trashId'   => $meta['trashId'],
+			// not a string, so the details dialog's field loop
+			// skips it automatically
+			'image'     => $this->panelImage($meta),
 			'title'     => $meta['title'] ?? $meta['id'] ?? $meta['trashId'],
 			'path'      => $meta['id'] ?? '',
 			'size'      => F::niceSize((int)($meta['size'] ?? 0)),
@@ -1006,6 +1045,198 @@ class Trash
 			// and a deletion date to postpone from)
 			'postponable' => $this->postponable($meta, $days),
 		];
+	}
+
+	/**
+	 * The Panel image object for a table row: a thumbnail for
+	 * previewable image files, an icon frame for everything else —
+	 * with the same type-based icons and colors as Kirby's own
+	 * file panels
+	 */
+	protected function panelImage(array $meta): array
+	{
+		if ($this->previewSource($meta) !== null) {
+			return [
+				'src'   => $this->kirby->url('panel') . '/trash/preview/' . $meta['trashId'],
+				'back'  => 'pattern',
+				'cover' => true,
+			];
+		}
+
+		if (($meta['type'] ?? null) !== 'file') {
+			return [
+				'icon'  => 'page',
+				'back'  => 'pattern',
+				'color' => 'gray-500',
+			];
+		}
+
+		// pass the extension, not the filename: F::type() treats any
+		// 2-4 character input as a literal extension, so a short
+		// filename like `a.js` would be looked up verbatim and miss
+		$filename  = $meta['relativePath'] ?? null;
+		$extension = is_string($filename) === true ? F::extension($filename) : '';
+		$type      = ($extension === '' ? null : F::type($extension)) ?? 'file';
+
+		return [
+			'icon'  => $type,
+			'back'  => 'pattern',
+			'color' => match ($type) {
+				'archive'  => 'gray-500',
+				'audio'    => 'aqua-500',
+				'code'     => 'pink-500',
+				'document' => 'red-500',
+				'image'    => 'orange-500',
+				'video'    => 'yellow-500',
+				default    => 'gray-500',
+			},
+		];
+	}
+
+	/**
+	 * The image file behind an item's preview, or null when there
+	 * is none: previews are limited to file items whose payload is
+	 * a supported image type — decided by content, never by file
+	 * extension. Listing trusts the MIME type sniffed at trash time
+	 * (re-sniffing every payload on every Panel request adds up);
+	 * the endpoint passes `$sniff` to re-validate the actual bytes
+	 * before anything is fed to the thumb driver.
+	 */
+	protected function previewSource(array $meta, bool $sniff = false): string|null
+	{
+		if ($this->kirby->option('sigtrygg-space.kirby-trash.previews', true) !== true) {
+			return null;
+		}
+
+		if (($meta['type'] ?? null) !== 'file') {
+			return null;
+		}
+
+		// the plain filename for file items; guard against
+		// crafted or corrupted metadata anyway
+		$filename = $meta['relativePath'] ?? null;
+
+		if (
+			is_string($filename) === false
+			|| $filename === ''
+			|| $filename !== basename($filename)
+		) {
+			return null;
+		}
+
+		$source = $this->root() . '/' . ($meta['trashId'] ?? '') . '/data/' . $filename;
+
+		if (is_file($source) === false) {
+			return null;
+		}
+
+		$mime = $sniff === false && is_string($meta['mime'] ?? null) === true
+			? $meta['mime']
+			// items trashed before the mime field existed
+			: Mime::type($source);
+
+		if (in_array($mime, static::PREVIEW_MIMES, true) === false) {
+			return null;
+		}
+
+		return $this->previewSupported($mime) === true ? $source : null;
+	}
+
+	/**
+	 * Whether the configured thumb driver can read the given image
+	 * type and write JPEG. Only GD is inspectable (host builds ship
+	 * without webp/avif routinely); other drivers bring their own
+	 * formats and are trusted — a failing generation 404s instead.
+	 */
+	protected function previewSupported(string $mime): bool
+	{
+		if ($this->kirby->option('thumbs.driver', 'gd') !== 'gd') {
+			return true;
+		}
+
+		if (function_exists('gd_info') === false) {
+			return false;
+		}
+
+		$info = gd_info();
+
+		// previews are always written as JPEG
+		if (($info['JPEG Support'] ?? false) !== true) {
+			return false;
+		}
+
+		return match ($mime) {
+			'image/jpeg' => true,
+			'image/png'  => ($info['PNG Support'] ?? false) === true,
+			'image/gif'  => ($info['GIF Read Support'] ?? false) === true,
+			'image/webp' => ($info['WebP Support'] ?? false) === true,
+			'image/avif' => ($info['AVIF Support'] ?? false) === true,
+			default      => false,
+		};
+	}
+
+	/**
+	 * Binary response for the preview request route: a square JPEG
+	 * thumbnail, generated lazily and cached until the item leaves
+	 * the trash. JPEG deliberately — every server-side GD build can
+	 * write it, whatever the source format was.
+	 */
+	public function preview(string $id): Response
+	{
+		$id = $this->validateId($id);
+
+		try {
+			// sniff: re-validate the actual payload bytes before
+			// they are fed to the thumb driver — the listing only
+			// checked the mime recorded at trash time
+			$source = $this->previewSource($this->item($id), sniff: true);
+		} catch (Throwable) {
+			$source = null;
+		}
+
+		if ($source === null) {
+			throw $this->notFound();
+		}
+
+		$thumb = $this->previewRoot() . '/' . $id . '.jpg';
+
+		// trash payloads are immutable, so an existing thumb stays valid
+		if (is_file($thumb) === false) {
+			try {
+				$this->kirby->thumb($source, $thumb, [
+					'width'  => static::PREVIEW_SIZE,
+					'height' => static::PREVIEW_SIZE,
+					'crop'   => true,
+					'format' => 'jpg',
+				]);
+			} catch (Throwable) {
+				// a failed generation may leave a partial file at the
+				// final path, which every later request would happily
+				// serve — remove it so the next request retries
+				F::remove($thumb);
+				throw $this->notFound();
+			}
+		}
+
+		return Response::file($thumb, [
+			// private: the endpoint sits behind the access permission
+			'headers' => ['Cache-Control' => 'private, max-age=86400'],
+		]);
+	}
+
+	/**
+	 * Where the preview thumbnails live: beneath the cache root —
+	 * private (unlike media/) and disposable, losing a thumb only
+	 * costs a regeneration
+	 */
+	public function previewRoot(): string
+	{
+		return $this->kirby->root('cache') . '/sigtrygg-space/kirby-trash/previews';
+	}
+
+	protected function removePreview(string $id): void
+	{
+		F::remove($this->previewRoot() . '/' . $id . '.jpg');
 	}
 
 	protected function notFound(): NotFoundException

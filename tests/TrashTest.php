@@ -2,6 +2,7 @@
 
 namespace SigtryggSpace\KirbyTrash;
 
+use Closure;
 use Kirby\Cms\App;
 use Kirby\Cms\File;
 use Kirby\Cms\Page;
@@ -10,6 +11,7 @@ use Kirby\Exception\DuplicateException;
 use Kirby\Exception\NotFoundException;
 use Kirby\Filesystem\Dir;
 use Kirby\Filesystem\F;
+use Kirby\Http\Response;
 use Kirby\Panel\Menu;
 use Kirby\Panel\Panel;
 use PHPUnit\Framework\TestCase;
@@ -1089,6 +1091,204 @@ final class TrashTest extends TestCase
 		$this->trash()->item('../../etc/passwd');
 	}
 
+	public function testImageFilePreviewsRenderAsJpegThumbs(): void
+	{
+		$this->requireGd();
+
+		$page = $this->createPage('note');
+		$this->createImageFile($page, 'photo.png');
+		$this->fresh()->page('note')->file('photo.png')->delete();
+
+		// the row links its image object to the preview route
+		$row = $this->trash()->panelItems()[0];
+		$this->assertSame(
+			$this->kirby->url('panel') . '/trash/preview/' . $row['trashId'],
+			$row['image']['src']
+		);
+		$this->assertTrue($row['image']['cover']);
+
+		// the request route streams a JPEG regardless of the source
+		// format and caches the thumb below the cache root
+		$area     = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$response = $this->previewAction($area)($row['trashId']);
+
+		$this->assertInstanceOf(Response::class, $response);
+		$this->assertSame('image/jpeg', $response->type());
+
+		$thumb = $this->trash()->previewRoot() . '/' . $row['trashId'] . '.jpg';
+		$this->assertFileExists($thumb);
+		$this->assertSame('image/jpeg', getimagesize($thumb)['mime']);
+	}
+
+	public function testNonImageItemsFallBackToTypedIcons(): void
+	{
+		$page = $this->createPage('note');
+		$this->createFile($page, 'notes.md');
+		// 2-4 character filenames trip F::type()'s literal-extension
+		// heuristic when passed verbatim — the icon must not care
+		$this->createFile($page, 'a.md');
+		$this->fresh()->page('note')->file('notes.md')->delete();
+		$this->fresh()->page('note')->file('a.md')->delete();
+		$this->fresh()->page('note')->delete();
+
+		$rows = array_column($this->trash()->panelItems(), 'image', 'title');
+
+		// pages get the page icon, files the same type-based icons
+		// as Kirby's own file panels; neither carries a `src`
+		$this->assertSame('page', $rows['Note']['icon']);
+		$this->assertSame('document', $rows['notes.md']['icon']);
+		$this->assertSame('document', $rows['a.md']['icon']);
+		$this->assertArrayNotHasKey('src', $rows['Note']);
+		$this->assertArrayNotHasKey('src', $rows['notes.md']);
+
+		// the preview endpoint refuses items without a previewable image
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$this->expectException(NotFoundException::class);
+		$this->trash()->preview($trashId);
+	}
+
+	public function testPreviewSniffsContentBeforeStreaming(): void
+	{
+		$this->requireGd();
+
+		$page = $this->createPage('note');
+		$this->createImageFile($page, 'photo.png');
+		$this->fresh()->page('note')->file('photo.png')->delete();
+
+		// swap the trashed payload for a text file wearing a .png
+		// extension: the listing may still trust the mime recorded
+		// at trash time, but the endpoint re-sniffs the actual bytes
+		// and refuses to feed them to the thumb driver
+		$trashId = $this->trash()->items()[0]['trashId'];
+		F::write($this->trash()->root() . '/' . $trashId . '/data/photo.png', 'not an image');
+		$this->trash()->flushIndex();
+
+		$this->expectException(NotFoundException::class);
+		$this->trash()->preview($trashId);
+	}
+
+	public function testListingUsesStoredMimeAndSniffsLegacyItems(): void
+	{
+		$this->requireGd();
+
+		$page = $this->createPage('note');
+		$this->createImageFile($page, 'photo.png');
+		$this->fresh()->page('note')->file('photo.png')->delete();
+
+		// freshly trashed items carry the mime sniffed at trash time
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$file    = $this->trash()->root() . '/' . $trashId . '/meta.json';
+		$meta    = Data::read($file, 'json');
+		$this->assertSame('image/png', $meta['mime']);
+
+		// items trashed before the mime field existed fall back to
+		// sniffing the payload while building the list
+		unset($meta['mime']);
+		Data::write($file, $meta, 'json');
+		$this->trash()->flushIndex();
+
+		$this->assertArrayHasKey('src', $this->trash()->panelItems()[0]['image']);
+	}
+
+	public function testCorruptRelativePathDoesNotBreakTheListing(): void
+	{
+		$page = $this->createPage('note');
+		$this->createFile($page, 'notes.md');
+		$this->fresh()->page('note')->file('notes.md')->delete();
+
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$file    = $this->trash()->root() . '/' . $trashId . '/meta.json';
+		$meta    = Data::read($file, 'json');
+		$meta['relativePath'] = ['not', 'a', 'string']; // corrupt meta
+		Data::write($file, $meta, 'json');
+		$this->trash()->flushIndex();
+
+		// one corrupted entry must degrade to the generic icon,
+		// not take the whole listing down with a TypeError
+		$row = $this->trash()->panelItems()[0];
+		$this->assertArrayNotHasKey('src', $row['image']);
+		$this->assertSame('file', $row['image']['icon']);
+
+		$this->expectException(NotFoundException::class);
+		$this->trash()->preview($trashId);
+	}
+
+	public function testPreviewGenerationFailureDegradesToNotFound(): void
+	{
+		$this->requireGd();
+
+		$page = $this->createPage('note');
+		$this->createImageFile($page, 'photo.png');
+		$this->fresh()->page('note')->file('photo.png')->delete();
+
+		// block the previews folder with a file: generation cannot
+		// write, and the endpoint must answer with not-found instead
+		// of leaking the underlying filesystem error
+		$root = $this->trash()->previewRoot();
+		Dir::make(dirname($root));
+		F::write($root, 'not a directory');
+
+		$this->expectException(NotFoundException::class);
+		$this->trash()->preview($this->trash()->items()[0]['trashId']);
+	}
+
+	public function testPreviewsCanBeDisabled(): void
+	{
+		$this->requireGd();
+
+		$page = $this->createPage('note');
+		$this->createImageFile($page, 'photo.png');
+		$this->fresh()->page('note')->file('photo.png')->delete();
+
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.previews' => false,
+		]);
+
+		// with previews disabled, even image files fall back to
+		// the icon and the endpoint refuses to stream
+		$row = $this->trash()->panelItems()[0];
+		$this->assertArrayNotHasKey('src', $row['image']);
+		$this->assertSame('image', $row['image']['icon']);
+
+		$this->expectException(NotFoundException::class);
+		$this->trash()->preview($row['trashId']);
+	}
+
+	public function testPreviewsAreCleanedUpWithTheirItems(): void
+	{
+		$this->requireGd();
+
+		$thumbFor = function (): string {
+			$trashId = $this->trash()->items()[0]['trashId'];
+			$this->trash()->preview($trashId);
+			$thumb = $this->trash()->previewRoot() . '/' . $trashId . '.jpg';
+			$this->assertFileExists($thumb);
+
+			return $thumb;
+		};
+
+		// restore removes the thumb alongside the item
+		$page = $this->createPage('note');
+		$this->createImageFile($page, 'photo.png');
+		$this->fresh()->page('note')->file('photo.png')->delete();
+		$thumb = $thumbFor();
+		$this->trash()->restore($this->trash()->items()[0]['trashId']);
+		$this->assertFileDoesNotExist($thumb);
+
+		// delete removes it too (and thereby cleanup, which deletes)
+		$this->fresh()->page('note')->file('photo.png')->delete();
+		$thumb = $thumbFor();
+		$this->trash()->delete($this->trash()->items()[0]['trashId']);
+		$this->assertFileDoesNotExist($thumb);
+
+		// emptying the trash drops the whole preview folder
+		$this->createImageFile($this->fresh()->page('note'), 'other.png');
+		$this->fresh()->page('note')->file('other.png')->delete();
+		$thumbFor();
+		$this->trash()->emptyTrash();
+		$this->assertDirectoryDoesNotExist($this->trash()->previewRoot());
+	}
+
 	/**
 	 * The trash menu entry, resolved the way Kirby resolves it on
 	 * every Panel request: through Panel\Menu, which runs after the
@@ -1106,6 +1306,47 @@ final class TrashTest extends TestCase
 		}
 
 		$this->fail('the trash menu entry is missing');
+	}
+
+	protected function requireGd(): void
+	{
+		if (extension_loaded('gd') === false) {
+			$this->markTestSkipped('the GD extension is not available');
+		}
+	}
+
+	/**
+	 * The preview request route's action, selected by pattern so
+	 * tests don't depend on the order of the area's request routes
+	 */
+	protected function previewAction(array $area): Closure
+	{
+		foreach ($area['requests'] as $route) {
+			if (($route['pattern'] ?? null) === 'trash/preview/(:any)') {
+				return $route['action'];
+			}
+		}
+
+		$this->fail('the preview request route is missing');
+	}
+
+	/**
+	 * A real PNG, so the content sniff of the preview
+	 * pipeline has something honest to detect
+	 */
+	protected function createImageFile(Page $page, string $filename): File
+	{
+		$source = $this->tmp . '/' . $filename;
+		$image  = imagecreatetruecolor(64, 48);
+		imagefill($image, 0, 0, imagecolorallocate($image, 40, 120, 200));
+		imagepng($image, $source);
+		imagedestroy($image);
+
+		return File::create([
+			'source'   => $source,
+			'parent'   => $page,
+			'filename' => $filename,
+		]);
 	}
 
 	protected function backdateItem(string $pageId, int $days): void

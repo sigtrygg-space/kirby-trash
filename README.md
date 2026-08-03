@@ -51,7 +51,9 @@ git submodule add https://github.com/sigtrygg-space/kirby-trash.git site/plugins
 The plugin adds a **Trash** area to the Panel menu (trash icon); the menu
 entry shows the number of trashed items as a badge. The area lists
 all trashed items in a table with their original path, size, deletion date
-and the remaining days until automatic cleanup. Items that are about to
+and the remaining days until automatic cleanup. Trashed image files show
+a thumbnail preview; other items carry the same type-based icons as
+Kirby's own file lists. Items that are about to
 expire are highlighted, and the badge switches to the warning color —
 a last chance to restore before the automatic cleanup removes them.
 Not sure yet? Every item can be kept for another retention cycle via
@@ -92,6 +94,11 @@ return [
     // menu entry. false disables the badge; an array restyles it,
     // e.g. ['theme' => 'passive'] for a more subtle look
     'sigtrygg-space.kirby-trash.badge' => true,
+
+    // thumbnail previews for trashed image files in the trash list.
+    // thumbs are generated lazily as JPEG below the cache root and
+    // removed together with their item
+    'sigtrygg-space.kirby-trash.previews' => true,
 
     // items expiring within this many days are highlighted in
     // the table and switch the badge to the warn theme.
