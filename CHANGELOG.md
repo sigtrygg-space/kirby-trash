@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 (unreleased)
+## 0.4.0 (2026-08-03)
 
 - Image previews in the trash list: trashed image files show a
   thumbnail instead of a generic row, trashed pages show their
