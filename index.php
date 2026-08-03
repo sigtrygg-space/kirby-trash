@@ -20,6 +20,9 @@ App::plugin('sigtrygg-space/kirby-trash', [
 		'retentionDays' => Trash::DEFAULT_RETENTION_DAYS,
 		'root'          => null,
 		'badge'         => true,
+		// image previews in the trash list; thumbnails are
+		// generated lazily below the cache root
+		'previews'      => true,
 		'warnDays'      => 5,
 		'warnTheme'     => 'orange',
 		// caches the next-expiry lookup the menu badge needs
@@ -130,6 +133,22 @@ App::plugin('sigtrygg-space/kirby-trash', [
 										: null,
 								],
 							];
+						},
+					],
+				],
+
+				// area request routes run through the Panel router like
+				// dialogs: the firewall authenticates before the action,
+				// and returned Response objects pass through verbatim —
+				// which is what lets this endpoint stream binary images
+				'requests' => [
+					[
+						'pattern' => 'trash/preview/(:any)',
+						'action'  => function (string $id) {
+							$trash = Trash::instance();
+							$trash->ensure('access');
+
+							return $trash->preview($id);
 						},
 					],
 				],
