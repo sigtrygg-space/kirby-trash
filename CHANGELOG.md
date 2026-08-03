@@ -3,15 +3,16 @@
 ## 0.4.0 (unreleased)
 
 - Image previews in the trash list: trashed image files show a
-  thumbnail instead of a generic row. Thumbnails are generated
-  lazily as JPEG (works on any server-side GD build, whatever the
-  source format), cached below the cache root, streamed through a
-  Panel route behind the `access` permission and removed together
-  with their item. The source format is detected by content
-  sniffing, never by file extension; SVG is deliberately excluded
-  from streaming. All other items show the same type-based icons
-  and colors as Kirby's own file panels. Disable via the new
-  `previews` option
+  thumbnail instead of a generic row, trashed pages show their
+  first image as a cover, and the details dialog shows a large
+  preview of both. Thumbnails are generated lazily as JPEG (works
+  on any server-side GD build, whatever the source format), cached
+  below the cache root, streamed through a Panel route behind the
+  `access` permission and removed together with their item. The
+  source format is detected by content sniffing, never by file
+  extension; SVG is deliberately excluded from streaming. All
+  other items show the same type-based icons and colors as Kirby's
+  own file panels. Disable via the new `previews` option
 
 ## 0.3.1 (2026-07-26)
 

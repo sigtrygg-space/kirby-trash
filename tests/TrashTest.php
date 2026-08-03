@@ -1213,6 +1213,87 @@ final class TrashTest extends TestCase
 		$this->trash()->preview($trashId);
 	}
 
+	public function testPageCoversPreviewInListAndDialog(): void
+	{
+		$this->requireGd();
+
+		$page = $this->createPage('gallery');
+		$this->createImageFile($page, 'photo.png');
+		$this->fresh()->page('gallery')->delete(true);
+
+		// the trashed page records its first image as cover …
+		$row  = $this->trash()->panelItems()[0];
+		$meta = Data::read($this->trash()->root() . '/' . $row['trashId'] . '/meta.json', 'json');
+		$this->assertSame('photo.png', $meta['cover']);
+		$this->assertSame('image/png', $meta['coverMime']);
+
+		// … which drives the list thumbnail and the endpoint
+		$this->assertSame(
+			$this->kirby->url('panel') . '/trash/preview/' . $row['trashId'],
+			$row['image']['src']
+		);
+		$this->assertSame('image/jpeg', $this->trash()->preview($row['trashId'])->type());
+
+		// the details dialog receives the same image object for
+		// its large preview
+		$area = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$load = $area['dialogs']['trash.details']['load']($row['trashId']);
+		$this->assertSame($row['image']['src'], $load['props']['image']['src']);
+	}
+
+	public function testPageCoverScanIsShallowAndLazyForLegacyItems(): void
+	{
+		$this->requireGd();
+
+		// the image lives in a child page: the shallow scan must
+		// not dig into the copied tree, so no cover is recorded
+		$parent = $this->createPage('parent');
+		$child  = $this->createPage('child', parent: $parent);
+		$this->createImageFile($child, 'photo.png');
+		$this->fresh()->page('parent')->delete(true);
+
+		$row = $this->trash()->panelItems()[0];
+		$this->assertArrayNotHasKey('src', $row['image']);
+		$this->assertSame('page', $row['image']['icon']);
+
+		// legacy items (trashed before covers were recorded) have
+		// no cover key at all and scan their folder lazily
+		$this->trash()->restore($row['trashId']);
+		$this->createImageFile($this->fresh()->page('parent'), 'cover.png');
+		$this->fresh()->page('parent')->delete(true);
+
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$file    = $this->trash()->root() . '/' . $trashId . '/meta.json';
+		$meta    = Data::read($file, 'json');
+		unset($meta['cover'], $meta['coverMime']);
+		Data::write($file, $meta, 'json');
+		$this->trash()->flushIndex();
+
+		$this->assertArrayHasKey('src', $this->trash()->panelItems()[0]['image']);
+	}
+
+	public function testCraftedCoverMetaIsRejected(): void
+	{
+		$this->requireGd();
+
+		$page = $this->createPage('gallery');
+		$this->createImageFile($page, 'photo.png');
+		$this->fresh()->page('gallery')->delete(true);
+
+		// a hand-edited cover must not escape the item's data folder
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$file    = $this->trash()->root() . '/' . $trashId . '/meta.json';
+		$meta    = Data::read($file, 'json');
+		$meta['cover'] = '../../../etc/passwd';
+		Data::write($file, $meta, 'json');
+		$this->trash()->flushIndex();
+
+		$this->assertArrayNotHasKey('src', $this->trash()->panelItems()[0]['image']);
+
+		$this->expectException(NotFoundException::class);
+		$this->trash()->preview($trashId);
+	}
+
 	public function testPreviewGenerationFailureDegradesToNotFound(): void
 	{
 		$this->requireGd();

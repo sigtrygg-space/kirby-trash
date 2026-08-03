@@ -1,3 +1,10 @@
+/* large preview above the field list; the frame brings its own
+   aspect ratio, we only add the gap and soften the corners */
+.k-trash-details-dialog .k-trash-details-preview {
+  margin-bottom: var(--spacing-6);
+  border-radius: var(--rounded);
+}
+
 .k-trash-details-dialog dl {
   display: flex;
   flex-direction: column;

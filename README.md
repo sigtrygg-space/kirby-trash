@@ -52,8 +52,9 @@ The plugin adds a **Trash** area to the Panel menu (trash icon); the menu
 entry shows the number of trashed items as a badge. The area lists
 all trashed items in a table with their original path, size, deletion date
 and the remaining days until automatic cleanup. Trashed image files show
-a thumbnail preview; other items carry the same type-based icons as
-Kirby's own file lists. Items that are about to
+a thumbnail preview, trashed pages the first image of their folder as a
+cover; other items carry the same type-based icons as Kirby's own file
+lists. Items that are about to
 expire are highlighted, and the badge switches to the warning color —
 a last chance to restore before the automatic cleanup removes them.
 Not sure yet? Every item can be kept for another retention cycle via
@@ -63,8 +64,9 @@ confirmation dialog showing the number of items and total size).
 
 On small screens the table is reduced to the most important columns; the
 options menu of every row therefore also offers a details dialog with all
-metadata (original path, size, deletion date, deleting user, time left)
-and the restore / delete actions.
+metadata (original path, size, deletion date, deleting user, time left),
+a large preview for images and page covers, and the restore / delete
+actions.
 
 ![The details dialog of a trash item](.github/screenshot-details.png)
 
