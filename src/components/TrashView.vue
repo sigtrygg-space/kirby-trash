@@ -43,7 +43,12 @@
            it), which opens the details dialog — the same single-click
            pattern as Kirby's structure tables -->
       <template v-if="items.length > 0">
-        <k-table :columns="columns" :rows="rows" @cell="onDetails" />
+        <k-table
+          :columns="columns"
+          :rows="rows"
+          :style="tableStyle"
+          @cell="onDetails"
+        />
         <footer class="k-collection-footer">
           <k-text class="k-help k-collection-help">
             {{ $t("sigtrygg-space.kirby-trash.help") }}
@@ -83,6 +88,9 @@ export default {
     postponeLabel: String,
     issue: String,
     cleaned: String,
+    // validated CSS length from the previews option, or null for
+    // Kirby's standard table row height
+    rowHeight: String,
     // note about entries counted by `total` that `items` cannot
     // show, or null when the table covers everything on disk
     unlisted: String
@@ -96,6 +104,14 @@ export default {
     }
   },
   computed: {
+    // the whole k-table geometry (rows, index column, buttons and
+    // our image column) hangs on this one CSS variable, so scaling
+    // it scales everything consistently
+    tableStyle() {
+      return this.rowHeight
+        ? { "--table-row-height": this.rowHeight }
+        : null;
+    },
     // all dialogs are defined in the plugin's PHP backend and
     // opened via k-button's native `dialog` prop; submitting
     // runs through the Panel's dialog pipeline (loading

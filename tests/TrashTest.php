@@ -1294,6 +1294,45 @@ final class TrashTest extends TestCase
 		$this->trash()->preview($trashId);
 	}
 
+	public function testRowHeightRidesOnThePreviewsOption(): void
+	{
+		$this->requireGd();
+
+		$page = $this->createPage('note');
+		$this->createImageFile($page, 'photo.png');
+		$this->fresh()->page('note')->file('photo.png')->delete();
+
+		// booleans only switch previews, the height stays standard
+		$this->assertNull($this->trash()->rowHeight());
+
+		// numbers are treated as px, length strings pass verbatim —
+		// both keep previews enabled
+		foreach ([56 => '56px', '3.5rem' => '3.5rem'] as $option => $expected) {
+			$this->kirby = $this->app([
+				'sigtrygg-space.kirby-trash.previews' => $option,
+			]);
+			$this->assertSame($expected, $this->trash()->rowHeight());
+			$this->assertArrayHasKey('src', $this->trash()->panelItems()[0]['image']);
+		}
+
+		// anything that is not a plain positive px/rem/em length is
+		// discarded — the value ends up in a style attribute
+		foreach ([false, 0, -20, '50%', 'calc(2rem + 1px)', 'red;background:url(x)'] as $option) {
+			$this->kirby = $this->app([
+				'sigtrygg-space.kirby-trash.previews' => $option,
+			]);
+			$this->assertNull($this->trash()->rowHeight());
+		}
+
+		// the view hands the validated value to the table
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.previews' => '3rem',
+		]);
+		$area  = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$props = $area['views'][0]['action']()['props'];
+		$this->assertSame('3rem', $props['rowHeight']);
+	}
+
 	public function testPreviewGenerationFailureDegradesToNotFound(): void
 	{
 		$this->requireGd();

@@ -21,7 +21,9 @@ App::plugin('sigtrygg-space/kirby-trash', [
 		'root'          => null,
 		'badge'         => true,
 		// image previews in the trash list; thumbnails are
-		// generated lazily below the cache root
+		// generated lazily below the cache root. false disables
+		// them; a number (px) or CSS length string like '3.5rem'
+		// additionally scales the table rows and previews
 		'previews'      => true,
 		'warnDays'      => 5,
 		'warnTheme'     => 'orange',
@@ -122,6 +124,9 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									// warning shown when the configured
 									// root is unreadable or uncreatable
 									'issue'      => $trash->rootIssue(),
+									// custom table row height (scales the
+									// previews), null = Kirby standard
+									'rowHeight'  => $trash->rowHeight(),
 									// explains why the red "cleanup
 									// required" badge led to fewer items
 									'cleaned'    => $cleaned > 0

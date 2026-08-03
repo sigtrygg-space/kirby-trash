@@ -6,6 +6,10 @@
   single-click pattern as Kirby's structure tables. The options
   menu keeps all row actions, and the options and index columns
   stay plain
+- The `previews` option also accepts a number (px) or a CSS length
+  string like `'3.5rem'`: it scales the table rows — and with them
+  the preview thumbnails, which follow Kirby's standard row height
+  and are quite small by default. Booleans keep working as before
 
 ## 0.4.0 (2026-08-03)
 

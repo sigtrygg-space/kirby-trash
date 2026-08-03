@@ -97,10 +97,13 @@ return [
     // e.g. ['theme' => 'passive'] for a more subtle look
     'sigtrygg-space.kirby-trash.badge' => true,
 
-    // thumbnail previews for trashed image files in the trash list.
+    // thumbnail previews for trashed image files and page covers.
     // thumbs are generated lazily as JPEG below the cache root and
-    // removed together with their item
-    'sigtrygg-space.kirby-trash.previews' => true,
+    // removed together with their item. false disables previews;
+    // a number (px) or CSS length string scales the table rows —
+    // and with them the thumbnails, which follow Kirby's standard
+    // row height by default
+    'sigtrygg-space.kirby-trash.previews' => true, // or e.g. '3.5rem'
 
     // items expiring within this many days are highlighted in
     // the table and switch the badge to the warn theme.
