@@ -7,6 +7,16 @@
     @cancel="$emit('cancel')"
     @submit="$panel.dialog.close()"
   >
+    <!-- large preview for image files and page covers; items
+         without a preview show nothing extra here — the icon
+         carries no information beyond the fields below -->
+    <k-image-frame
+      v-if="image && image.src"
+      class="k-trash-details-preview"
+      :src="image.src"
+      back="pattern"
+      ratio="3/2"
+    />
     <dl>
       <div v-for="field in fields" :key="field.label">
         <dt>{{ field.label }}</dt>
@@ -55,6 +65,8 @@ export default {
       default: () => []
     },
     trashId: String,
+    // the row's panel image object; only its src is used here
+    image: Object,
     canRestore: Boolean,
     canDelete: Boolean,
     // label of the postpone action incl. the cycle length,

@@ -188,6 +188,10 @@ App::plugin('sigtrygg-space/kirby-trash', [
 								'props' => [
 									'fields'     => $fields,
 									'trashId'    => $id,
+									// the row's panel image object; the
+									// dialog shows a large preview when
+									// it carries a src
+									'image'      => $row['image'],
 									'canRestore' => $trash->can('restore'),
 									'canDelete'  => $trash->can('delete'),
 									'postponeLabel' => $row['postponable'] === true

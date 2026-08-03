@@ -264,6 +264,12 @@ class Trash
 		try {
 			Dir::copy($page->root(), $itemRoot . '/data');
 
+			// recorded once here, so the trash list doesn't have to
+			// re-scan the folder per request; null when the page has
+			// no image (distinguished from legacy items, which lack
+			// the key entirely and scan lazily)
+			[$cover, $coverMime] = $this->findCover($itemRoot . '/data');
+
 			$this->writeMeta($itemRoot, [
 				'type'         => 'page',
 				'id'           => $page->id(),
@@ -272,6 +278,8 @@ class Trash
 				'parentUuid'   => $this->uuidOf($parent, generate: true),
 				'uuid'         => $this->uuidOf($page),
 				'relativePath' => ltrim(substr($page->root(), strlen($parentRoot)), '/'),
+				'cover'        => $cover,
+				'coverMime'    => $coverMime,
 			]);
 		} catch (Throwable $e) {
 			Dir::remove($itemRoot);
@@ -1108,14 +1116,16 @@ class Trash
 			return null;
 		}
 
-		if (($meta['type'] ?? null) !== 'file') {
-			return null;
-		}
+		// file items preview their own payload, page items their
+		// cover — the first image of the trashed folder
+		[$filename, $mime] = match ($meta['type'] ?? null) {
+			'file'  => [$meta['relativePath'] ?? null, $meta['mime'] ?? null],
+			'page'  => $this->coverOf($meta),
+			default => [null, null],
+		};
 
-		// the plain filename for file items; guard against
+		// a plain filename in both cases; guard against
 		// crafted or corrupted metadata anyway
-		$filename = $meta['relativePath'] ?? null;
-
 		if (
 			is_string($filename) === false
 			|| $filename === ''
@@ -1130,16 +1140,60 @@ class Trash
 			return null;
 		}
 
-		$mime = $sniff === false && is_string($meta['mime'] ?? null) === true
-			? $meta['mime']
-			// items trashed before the mime field existed
-			: Mime::type($source);
+		if ($sniff === true || is_string($mime) === false) {
+			$mime = Mime::type($source);
+		}
 
 		if (in_array($mime, static::PREVIEW_MIMES, true) === false) {
 			return null;
 		}
 
 		return $this->previewSupported($mime) === true ? $source : null;
+	}
+
+	/**
+	 * The cover of a page item as a `[filename, mime]` pair —
+	 * both null when the page has none. Recorded at trash time;
+	 * items trashed before covers existed (no `cover` key at all)
+	 * fall back to scanning their folder lazily.
+	 */
+	protected function coverOf(array $meta): array
+	{
+		if (array_key_exists('cover', $meta) === true) {
+			return is_string($meta['cover']) === true
+				? [$meta['cover'], $meta['coverMime'] ?? null]
+				: [null, null];
+		}
+
+		return $this->findCover(
+			$this->root() . '/' . ($meta['trashId'] ?? '') . '/data'
+		);
+	}
+
+	/**
+	 * The first image directly inside the given folder as a
+	 * `[filename, mime]` pair, decided by content sniffing.
+	 * Deliberately shallow: for page items that covers the page's
+	 * own files — digging into children would make trashing large
+	 * trees expensive for a nicety.
+	 */
+	protected function findCover(string $root): array
+	{
+		try {
+			$files = Dir::files($root);
+		} catch (Throwable) {
+			return [null, null];
+		}
+
+		foreach ($files as $file) {
+			$mime = Mime::type($root . '/' . $file);
+
+			if (in_array($mime, static::PREVIEW_MIMES, true) === true) {
+				return [$file, $mime];
+			}
+		}
+
+		return [null, null];
 	}
 
 	/**
