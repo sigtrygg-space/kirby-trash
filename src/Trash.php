@@ -1112,7 +1112,10 @@ class Trash
 	 */
 	protected function previewSource(array $meta, bool $sniff = false): string|null
 	{
-		if ($this->kirby->option('sigtrygg-space.kirby-trash.previews', true) !== true) {
+		// only `false` disables previews — numbers and length
+		// strings are row-height values (see rowHeight()) and
+		// keep them enabled
+		if ($this->kirby->option('sigtrygg-space.kirby-trash.previews', true) === false) {
 			return null;
 		}
 
@@ -1276,6 +1279,34 @@ class Trash
 			// private: the endpoint sits behind the access permission
 			'headers' => ['Cache-Control' => 'private, max-age=86400'],
 		]);
+	}
+
+	/**
+	 * Custom row height for the trash table, or null for Kirby's
+	 * standard. Piggybacks on the `previews` option: booleans only
+	 * switch previews, while a number (treated as px) or a CSS
+	 * length string additionally scales the rows — and with them
+	 * the preview thumbnails. Strictly validated: the value ends
+	 * up in a style attribute, so anything but a plain positive
+	 * px/rem/em length is discarded.
+	 */
+	public function rowHeight(): string|null
+	{
+		$option = $this->kirby->option('sigtrygg-space.kirby-trash.previews', true);
+
+		if (is_int($option) === true || is_float($option) === true) {
+			return $option > 0 ? $option . 'px' : null;
+		}
+
+		if (
+			is_string($option) === true &&
+			preg_match('/^(\d+(?:\.\d+)?)(px|rem|em)$/', $option, $match) === 1 &&
+			(float)$match[1] > 0
+		) {
+			return $option;
+		}
+
+		return null;
 	}
 
 	/**
