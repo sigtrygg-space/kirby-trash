@@ -1173,7 +1173,7 @@ class Trash
 	/**
 	 * The first image directly inside the given folder as a
 	 * `[filename, mime]` pair, decided by content sniffing.
-	 * Deliberately shallow: for page items that covers the page's
+	 * Deliberately shallow: for page items this covers the page's
 	 * own files — digging into children would make trashing large
 	 * trees expensive for a nicety.
 	 */
