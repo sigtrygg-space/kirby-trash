@@ -21,6 +21,12 @@
   overflow-wrap: anywhere;
 }
 
+/* every data cell opens the details dialog on click (the index
+   and options columns carry their own classes and are excluded) */
+.k-trash-view .k-table td.k-table-column {
+  cursor: pointer;
+}
+
 /* the cleanup report and the unlistable-entries note sit above the
    list / empty state and need a gap towards it (and each other) */
 .k-trash-view .k-trash-cleaned,

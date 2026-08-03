@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 (unreleased)
+
+- Clicking a trash item opens its details dialog — the same
+  single-click pattern as Kirby's structure tables. The options
+  menu keeps all row actions, and the options and index columns
+  stay plain
+
 ## 0.4.0 (2026-08-03)
 
 - Image previews in the trash list: trashed image files show a
