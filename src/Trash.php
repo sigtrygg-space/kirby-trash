@@ -1300,7 +1300,8 @@ class Trash
 
 		if (
 			is_string($option) === true &&
-			preg_match('/^\d+(\.\d+)?(px|rem|em)$/', $option) === 1
+			preg_match('/^(\d+(?:\.\d+)?)(px|rem|em)$/', $option, $match) === 1 &&
+			(float)$match[1] > 0
 		) {
 			return $option;
 		}

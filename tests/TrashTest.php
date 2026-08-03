@@ -1317,7 +1317,7 @@ final class TrashTest extends TestCase
 
 		// anything that is not a plain positive px/rem/em length is
 		// discarded — the value ends up in a style attribute
-		foreach ([false, 0, -20, '50%', 'calc(2rem + 1px)', 'red;background:url(x)'] as $option) {
+		foreach ([false, 0, -20, '0px', '0.0rem', '50%', 'calc(2rem + 1px)', 'red;background:url(x)'] as $option) {
 			$this->kirby = $this->app([
 				'sigtrygg-space.kirby-trash.previews' => $option,
 			]);
