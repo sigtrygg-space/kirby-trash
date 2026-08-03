@@ -38,16 +38,21 @@
       >
         {{ unlisted }}
       </k-box>
-      <k-collection
-        v-if="items.length > 0"
-        layout="table"
-        :columns="columns"
-        :items="rows"
-        :help="$t('sigtrygg-space.kirby-trash.help')"
-      />
+      <!-- k-table directly instead of k-collection: only the table
+           itself surfaces the `cell` click event (k-items swallows
+           it), which opens the details dialog — the same single-click
+           pattern as Kirby's structure tables -->
+      <template v-if="items.length > 0">
+        <k-table :columns="columns" :rows="rows" @cell="onDetails" />
+        <footer class="k-collection-footer">
+          <k-text class="k-help k-collection-help">
+            {{ $t("sigtrygg-space.kirby-trash.help") }}
+          </k-text>
+        </footer>
+      </template>
       <!-- only a genuinely empty trash says so — with unlistable
            entries left, the note above explains the state instead -->
-      <k-empty v-else-if="total === 0" icon="trash">
+      <k-empty v-if="items.length === 0 && total === 0" icon="trash">
         {{ $t("sigtrygg-space.kirby-trash.empty") }}
       </k-empty>
     </template>
@@ -81,6 +86,14 @@ export default {
     // note about entries counted by `total` that `items` cannot
     // show, or null when the table covers everything on disk
     unlisted: String
+  },
+  methods: {
+    // fired by k-table for a click on any data cell (the options
+    // column stays untouched); opening by path goes through the
+    // same Panel pipeline as k-button's dialog prop
+    onDetails({ row }) {
+      this.$panel.dialog.open("trash/" + row.trashId + "/details");
+    }
   },
   computed: {
     // all dialogs are defined in the plugin's PHP backend and

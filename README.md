@@ -54,7 +54,7 @@ all trashed items in a table with their original path, size, deletion date
 and the remaining days until automatic cleanup. Trashed image files show
 a thumbnail preview, trashed pages the first image of their folder as a
 cover; other items carry the same type-based icons as Kirby's own file
-lists. Items that are about to
+lists. Clicking an item opens its details dialog. Items that are about to
 expire are highlighted, and the badge switches to the warning color —
 a last chance to restore before the automatic cleanup removes them.
 Not sure yet? Every item can be kept for another retention cycle via
