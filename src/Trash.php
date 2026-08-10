@@ -1346,7 +1346,10 @@ class Trash
 				return null;
 			}
 
-			$size = getimagesize($source);
+			// suppressed: getimagesize() reports unreadable or corrupt
+			// files as warnings, not exceptions — @ plus the false
+			// check below turns them into the null fallback
+			$size = @getimagesize($source);
 		} catch (Throwable) {
 			return null;
 		}

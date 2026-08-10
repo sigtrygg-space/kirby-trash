@@ -1119,10 +1119,11 @@ final class TrashTest extends TestCase
 		$this->assertFileExists($thumb);
 
 		// not cropped: the 64x48 source keeps its 4:3 aspect ratio
-		// (the list's square cells crop via CSS instead)
+		// (the list's square cells crop via CSS instead); integer
+		// cross-multiplication avoids float comparison entirely
 		$size = getimagesize($thumb);
 		$this->assertSame('image/jpeg', $size['mime']);
-		$this->assertSame($size[0] / $size[1], 64 / 48);
+		$this->assertSame($size[0] * 3, $size[1] * 4);
 
 		// the details dialog receives the native ratio for its frame
 		$this->assertSame('64/48', $this->trash()->previewRatio($row['trashId']));
