@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1 (unreleased)
+
+- The details dialog preview keeps the image's native aspect ratio:
+  the preview frame is sized to the actual image format and the
+  thumbnails are no longer cropped to a square on the server — the
+  trash list looks unchanged (its square cells crop via CSS), and
+  very tall formats are capped gracefully instead of blowing up
+  the dialog
+
 ## 0.5.0 (2026-08-10)
 
 - Clicking a trash item opens its details dialog — the same

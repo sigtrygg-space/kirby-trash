@@ -1,8 +1,12 @@
-/* large preview above the field list; the frame brings its own
-   aspect ratio, we only add the gap and soften the corners */
+/* large preview above the field list; the frame carries the
+   image's native aspect ratio, we add the gap, soften the corners
+   and cap the height — extreme portrait formats then letterbox
+   gracefully via the frame's contain fit instead of blowing up
+   the dialog */
 .k-trash-details-dialog .k-trash-details-preview {
   margin-bottom: var(--spacing-6);
   border-radius: var(--rounded);
+  max-height: 22rem;
 }
 
 .k-trash-details-dialog dl {

@@ -1233,9 +1233,12 @@ class Trash
 	}
 
 	/**
-	 * Binary response for the preview request route: a square JPEG
-	 * thumbnail, generated lazily and cached until the item leaves
-	 * the trash. JPEG deliberately — every server-side GD build can
+	 * Binary response for the preview request route: a JPEG
+	 * thumbnail fitted into the PREVIEW_SIZE box with its aspect
+	 * ratio preserved, generated lazily and cached until the item
+	 * leaves the trash. Not cropped — the list's square cells crop
+	 * via CSS (cover), while the details dialog shows the native
+	 * format. JPEG deliberately — every server-side GD build can
 	 * write it, whatever the source format was.
 	 */
 	public function preview(string $id): Response
@@ -1255,7 +1258,9 @@ class Trash
 			throw $this->notFound();
 		}
 
-		$thumb = $this->previewRoot() . '/' . $id . '.jpg';
+		// `-fit` distinguishes the aspect-preserving thumbs from the
+		// square crops cached by plugin versions up to 0.5.0
+		$thumb = $this->previewRoot() . '/' . $id . '-fit.jpg';
 
 		// trash payloads are immutable, so an existing thumb stays valid
 		if (is_file($thumb) === false) {
@@ -1263,7 +1268,6 @@ class Trash
 				$this->kirby->thumb($source, $thumb, [
 					'width'  => static::PREVIEW_SIZE,
 					'height' => static::PREVIEW_SIZE,
-					'crop'   => true,
 					'format' => 'jpg',
 				]);
 			} catch (Throwable) {
@@ -1321,7 +1325,40 @@ class Trash
 
 	protected function removePreview(string $id): void
 	{
+		F::remove($this->previewRoot() . '/' . $id . '-fit.jpg');
+		// square crops cached by plugin versions up to 0.5.0
 		F::remove($this->previewRoot() . '/' . $id . '.jpg');
+	}
+
+	/**
+	 * The native aspect ratio of an item's preview image as a CSS
+	 * `aspect-ratio` value ("W/H"), or null when there is no
+	 * preview or the dimensions cannot be read. The details dialog
+	 * sizes its preview frame with it, so the image keeps its
+	 * format instead of being letterboxed into a fixed ratio.
+	 */
+	public function previewRatio(string $id): string|null
+	{
+		try {
+			$source = $this->previewSource($this->item($id));
+
+			if ($source === null) {
+				return null;
+			}
+
+			// suppressed: getimagesize() reports unreadable or corrupt
+			// files as warnings, not exceptions — @ plus the false
+			// check below turns them into the null fallback
+			$size = @getimagesize($source);
+		} catch (Throwable) {
+			return null;
+		}
+
+		if (is_array($size) === false || $size[0] < 1 || $size[1] < 1) {
+			return null;
+		}
+
+		return $size[0] . '/' . $size[1];
 	}
 
 	protected function notFound(): NotFoundException

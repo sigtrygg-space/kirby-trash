@@ -1115,9 +1115,20 @@ final class TrashTest extends TestCase
 		$this->assertInstanceOf(Response::class, $response);
 		$this->assertSame('image/jpeg', $response->type());
 
-		$thumb = $this->trash()->previewRoot() . '/' . $row['trashId'] . '.jpg';
+		$thumb = $this->trash()->previewRoot() . '/' . $row['trashId'] . '-fit.jpg';
 		$this->assertFileExists($thumb);
-		$this->assertSame('image/jpeg', getimagesize($thumb)['mime']);
+
+		// not cropped: the 64x48 source keeps its 4:3 aspect ratio
+		// (the list's square cells crop via CSS instead); integer
+		// cross-multiplication avoids float comparison entirely
+		$size = getimagesize($thumb);
+		$this->assertSame('image/jpeg', $size['mime']);
+		$this->assertSame($size[0] * 3, $size[1] * 4);
+
+		// the details dialog receives the native ratio for its frame
+		$this->assertSame('64/48', $this->trash()->previewRatio($row['trashId']));
+		$load = $area['dialogs']['trash.details']['load']($row['trashId']);
+		$this->assertSame('64/48', $load['props']['ratio']);
 	}
 
 	public function testNonImageItemsFallBackToTypedIcons(): void
@@ -1381,8 +1392,12 @@ final class TrashTest extends TestCase
 		$thumbFor = function (): string {
 			$trashId = $this->trash()->items()[0]['trashId'];
 			$this->trash()->preview($trashId);
-			$thumb = $this->trash()->previewRoot() . '/' . $trashId . '.jpg';
+			$thumb = $this->trash()->previewRoot() . '/' . $trashId . '-fit.jpg';
 			$this->assertFileExists($thumb);
+
+			// a leftover square crop from plugin versions up to 0.5.0
+			// has to be cleaned up alongside the item as well
+			F::write($this->trash()->previewRoot() . '/' . $trashId . '.jpg', 'legacy');
 
 			return $thumb;
 		};
@@ -1391,15 +1406,19 @@ final class TrashTest extends TestCase
 		$page = $this->createPage('note');
 		$this->createImageFile($page, 'photo.png');
 		$this->fresh()->page('note')->file('photo.png')->delete();
-		$thumb = $thumbFor();
-		$this->trash()->restore($this->trash()->items()[0]['trashId']);
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$thumb   = $thumbFor();
+		$this->trash()->restore($trashId);
 		$this->assertFileDoesNotExist($thumb);
+		$this->assertFileDoesNotExist($this->trash()->previewRoot() . '/' . $trashId . '.jpg');
 
 		// delete removes it too (and thereby cleanup, which deletes)
 		$this->fresh()->page('note')->file('photo.png')->delete();
-		$thumb = $thumbFor();
-		$this->trash()->delete($this->trash()->items()[0]['trashId']);
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$thumb   = $thumbFor();
+		$this->trash()->delete($trashId);
 		$this->assertFileDoesNotExist($thumb);
+		$this->assertFileDoesNotExist($this->trash()->previewRoot() . '/' . $trashId . '.jpg');
 
 		// emptying the trash drops the whole preview folder
 		$this->createImageFile($this->fresh()->page('note'), 'other.png');
