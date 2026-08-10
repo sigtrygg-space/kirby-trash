@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 (unreleased)
+## 0.5.0 (2026-08-10)
 
 - Clicking a trash item opens its details dialog — the same
   single-click pattern as Kirby's structure tables. The options
