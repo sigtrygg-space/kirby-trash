@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.1 (unreleased)
+## 0.5.1 (2026-08-10)
 
 - The details dialog preview keeps the image's native aspect ratio:
   the preview frame is sized to the actual image format and the
