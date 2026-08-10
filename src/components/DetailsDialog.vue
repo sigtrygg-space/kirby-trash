@@ -9,13 +9,15 @@
   >
     <!-- large preview for image files and page covers; items
          without a preview show nothing extra here — the icon
-         carries no information beyond the fields below -->
+         carries no information beyond the fields below. The frame
+         takes the image's native ratio, so nothing is cropped or
+         letterboxed; 3/2 only backstops unreadable dimensions -->
     <k-image-frame
       v-if="image && image.src"
       class="k-trash-details-preview"
       :src="image.src"
       back="pattern"
-      ratio="3/2"
+      :ratio="ratio || '3/2'"
     />
     <dl>
       <div v-for="field in fields" :key="field.label">
@@ -67,6 +69,9 @@ export default {
     trashId: String,
     // the row's panel image object; only its src is used here
     image: Object,
+    // native aspect ratio of the preview ("W/H"), or null when
+    // the dimensions could not be read server-side
+    ratio: String,
     canRestore: Boolean,
     canDelete: Boolean,
     // label of the postpone action incl. the cycle length,

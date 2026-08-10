@@ -197,6 +197,10 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									// dialog shows a large preview when
 									// it carries a src
 									'image'      => $row['image'],
+									// native aspect ratio of the preview
+									// image, so the dialog frame matches
+									// the format instead of cropping
+									'ratio'      => $trash->previewRatio($id),
 									'canRestore' => $trash->can('restore'),
 									'canDelete'  => $trash->can('delete'),
 									'postponeLabel' => $row['postponable'] === true
