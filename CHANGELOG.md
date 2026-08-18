@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 (unreleased)
+
+- The trash list sorts by expiry date (latest first) instead of
+  deletion date — identical as long as nothing is postponed, but a
+  postponed item now moves up: it lives longest. Without an expiry
+  (retention disabled) the deletion date keeps deciding
+
 ## 0.5.1 (2026-08-10)
 
 - The details dialog preview keeps the image's native aspect ratio:

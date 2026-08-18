@@ -211,6 +211,31 @@ final class TrashTest extends TestCase
 		$this->assertArrayHasKey('trashId', $rows[0]);
 	}
 
+	public function testItemsSortByExpiryNotDeletion(): void
+	{
+		$this->createPage('older');
+		$this->createPage('newer');
+		$this->fresh()->page('older')->delete();
+		$this->fresh()->page('newer')->delete();
+		$this->backdateItem('older', 2);
+		$this->backdateItem('newer', 1);
+
+		// without postpones, latest expiry first equals newest
+		// deletion first — the order everyone knows
+		$this->assertSame(['newer', 'older'], array_column($this->trash()->items(), 'id'));
+
+		// postponing pushes the item up: it now lives longest
+		$older = array_column($this->trash()->items(), 'trashId', 'id')['older'];
+		$this->trash()->postpone($older);
+		$this->assertSame(['older', 'newer'], array_column($this->trash()->items(), 'id'));
+
+		// retention disabled: nothing expires, deletion date decides
+		$this->kirby = $this->app([
+			'sigtrygg-space.kirby-trash.retentionDays' => -1,
+		]);
+		$this->assertSame(['newer', 'older'], array_column($this->trash()->items(), 'id'));
+	}
+
 	public function testPanelItemsPluralizeRemainingDays(): void
 	{
 		$this->createPage('note');
