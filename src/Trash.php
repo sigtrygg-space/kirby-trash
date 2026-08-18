@@ -604,11 +604,6 @@ class Trash
 	}
 
 	/**
-	 * Effective expiry timestamp of an item: an explicit
-	 * `keepUntil` (set by postpone()) wins over the regular
-	 * `deletedAt` + retention
-	 */
-	/**
 	 * Position of an item in the trash list: the expiry timestamp
 	 * when there is one, the deletion timestamp otherwise (retention
 	 * disabled, or corrupt metadata — which thereby sinks to the
@@ -621,6 +616,11 @@ class Trash
 		return $rank ?? $this->metaTime($meta, 'deletedAt') ?? 0;
 	}
 
+	/**
+	 * Effective expiry timestamp of an item: an explicit
+	 * `keepUntil` (set by postpone()) wins over the regular
+	 * `deletedAt` + retention
+	 */
 	protected function expiresAt(array $meta, int $days): int|null
 	{
 		if (($keepUntil = $this->metaTime($meta, 'keepUntil')) !== null) {
