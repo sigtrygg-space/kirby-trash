@@ -528,10 +528,11 @@ class Trash
 			return;
 		}
 
-		$kept = $this->keptIds();
+		// flipped for O(1) lookups per directory entry
+		$kept = array_flip($this->keptIds());
 
 		foreach (Dir::read($root) as $entry) {
-			if (in_array($entry, $kept, true) === true) {
+			if (isset($kept[$entry]) === true) {
 				continue;
 			}
 
@@ -562,16 +563,28 @@ class Trash
 	}
 
 	/**
+	 * Number of entries "empty trash" would remove — the size-free
+	 * companion of emptyStats(), cheap enough to gate the header
+	 * button on every view request (a directory count minus the
+	 * kept items; no recursive byte measuring)
+	 */
+	public function removableCount(): int
+	{
+		return max(0, $this->count() - count($this->keptIds()));
+	}
+
+	/**
 	 * What "empty trash" would remove: the number of entries and
 	 * their bytes — excluding indefinitely kept items — plus how
-	 * many kept items are spared. Powers the confirmation dialog
-	 * and the button's visibility; measured one entry at a time
-	 * for the same reasons as totalSize().
+	 * many kept items are spared. Powers the confirmation dialog;
+	 * measured one entry at a time for the same reasons as
+	 * totalSize(). The view's button gating uses the cheaper
+	 * removableCount() instead.
 	 */
 	public function emptyStats(): array
 	{
 		$root  = $this->root();
-		$kept  = $this->keptIds();
+		$kept  = array_flip($this->keptIds());
 		$stats = ['count' => 0, 'size' => 0, 'kept' => count($kept)];
 
 		if (is_dir($root) === false) {
@@ -585,7 +598,7 @@ class Trash
 		}
 
 		foreach ($entries as $entry) {
-			if (in_array($entry, $kept, true) === true) {
+			if (isset($kept[$entry]) === true) {
 				continue;
 			}
 

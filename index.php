@@ -116,8 +116,10 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									// (kept items excluded, broken entries
 									// included) — gates the empty-trash button:
 									// with only kept items left, emptying would
-									// be a no-op and the button disappears
-									'removable'  => $trash->emptyStats()['count'],
+									// be a no-op and the button disappears.
+									// Count-only: the dialog does the byte
+									// measuring, not every view request
+									'removable'  => $trash->removableCount(),
 									// note about the entries behind the
 									// difference between `total` and `items`
 									'unlisted'   => $trash->unlistedLabel(),
