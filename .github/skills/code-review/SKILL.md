@@ -26,8 +26,9 @@ hooks, the Panel area with backend-defined dialogs, and a CLI command.
   both shapes are intentional.
 - **Committed `index.js` / `index.css`:** build artifacts, precompiled
   from `src/` with kirbyup. Do not review their diffs; review the
-  sources in `src/components/` and `src/styles.css` instead. CI fails
-  when the committed build is stale.
+  sources instead — `src/index.js` (the entrypoint registering
+  components), `src/components/` and `src/styles.css`. CI fails when
+  the committed build is stale.
 - **`composer.json` `version` field:** intentional despite Composer's
   warning — the Panel shows it for manual and submodule installs, and
   the release workflow keys off it. Never suggest removing it.
@@ -41,9 +42,10 @@ hooks, the Panel area with backend-defined dialogs, and a CLI command.
   there.
 - **Corrupt `meta.json` must degrade, never crash.** Meta fields are
   user-editable files on disk: every new read of a meta value needs
-  the same treatment as `metaTime()` (`is_string()` guards, try/catch
-  around per-entry work) so one broken entry cannot 500 the whole
-  listing. This is a tested, first-class scenario.
+  type guards like `metaTime()`'s `is_string()` check, and per-entry
+  work needs a try/catch like the `Data::read()` handling in
+  `items()`, so one broken entry cannot 500 the whole listing. This
+  is a tested, first-class scenario.
 - **Cleanup on failure:** operations that write files (`trashPage()`,
   `trashFile()`, preview generation) remove their partial output in a
   catch block before rethrowing. New write paths need the same
