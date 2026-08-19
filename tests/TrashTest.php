@@ -408,6 +408,31 @@ final class TrashTest extends TestCase
 		$meta = Data::read($this->trash()->root() . '/' . $item['trashId'] . '/meta.json', 'json');
 		$this->assertSame(strtotime($until . ' 23:59:59'), strtotime($meta['keepUntil']));
 
+		// an EDITED date arrives as "Y-m-d 00:00:00" from the date
+		// field (only an untouched prefill stays date-only): the item
+		// must still be kept for that whole day — and "tomorrow" at
+		// midnight must not trip the min-tomorrow check either
+		$edited = date('Y-m-d', time() + 86400);
+		$this->kirby = $this->app([], ['request' => ['query' => [
+			'until'   => $edited . ' 00:00:00',
+			'forever' => false,
+		]]]);
+		$area    = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$dialogs = $area['dialogs'];
+		$dialogs['trash.postpone']['submit']($item['trashId']);
+
+		$meta = Data::read($this->trash()->root() . '/' . $item['trashId'] . '/meta.json', 'json');
+		$this->assertSame(strtotime($edited . ' 23:59:59'), strtotime($meta['keepUntil']));
+
+		// restore the first date for the prefill assertions below
+		$this->kirby = $this->app([], ['request' => ['query' => [
+			'until'   => $until,
+			'forever' => false,
+		]]]);
+		$area    = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$dialogs = $area['dialogs'];
+		$dialogs['trash.postpone']['submit']($item['trashId']);
+
 		// the dialog now prefills with the stored date …
 		$load = $dialogs['trash.postpone']['load']($item['trashId']);
 		$this->assertSame($until, $load['props']['value']['until']);
