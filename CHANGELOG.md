@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.0 (unreleased)
+## 0.6.0 (2026-08-19)
 
 - The trash list sorts by expiry date (latest first) instead of
   deletion date — identical as long as nothing is postponed, but a
