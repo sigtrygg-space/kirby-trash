@@ -254,9 +254,14 @@ App::plugin('sigtrygg-space/kirby-trash', [
 											'when'     => ['forever' => false],
 										],
 									],
+									// the entry points say "Keep longer" (the
+									// main intent), but the dialog can also
+									// shorten or switch to indefinite — the
+									// submit stays accurate with Kirby's
+									// standard "Save"
 									'submitButton' => [
 										'icon' => 'clock',
-										'text' => $trash->postponeLabel(),
+										'text' => I18n::translate('save'),
 									],
 									'value' => [
 										'forever' => ($meta['keepUntil'] ?? null) === true,
