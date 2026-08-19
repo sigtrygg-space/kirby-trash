@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.1 (unreleased)
+## 0.6.1 (2026-08-19)
 
 - The postpone dialog's submit button says "Save" instead of
   repeating "Keep longer" — the dialog can also shorten the
