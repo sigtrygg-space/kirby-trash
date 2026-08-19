@@ -452,7 +452,7 @@ final class TrashTest extends TestCase
 		$this->assertTrue($dialogs['trash.postpone']['load']($item['trashId'])['props']['value']['forever']);
 	}
 
-	public function testKeepIndefinitelyProtectsFromCleanupOnly(): void
+	public function testKeepIndefinitelyProtectsFromCleanupAndEmpty(): void
 	{
 		$this->createPage('keeper');
 		$this->createPage('other');
@@ -485,11 +485,65 @@ final class TrashTest extends TestCase
 		$this->assertNotSame('Kept forever', $reverted['remaining']);
 		$this->assertSame('other', $this->trash()->panelItems()[0]['path']);
 
-		// manual removal always works — only the automatic cleanup
-		// respects the flag
+		// emptying the trash spares the kept item as well — only
+		// its own delete action removes it
 		$this->trash()->postpone($keeper, true);
+		$this->trash()->emptyTrash();
+		$items = $this->trash()->items();
+		$this->assertCount(1, $items);
+		$this->assertSame('keeper', $items[0]['id']);
+
 		$this->trash()->delete($keeper);
-		$this->assertCount(1, $this->trash()->items());
+		$this->assertCount(0, $this->trash()->items());
+	}
+
+	public function testEmptyTrashDialogAndButtonExcludeKeptItems(): void
+	{
+		$this->createPage('keeper');
+		$this->createPage('note');
+		$this->fresh()->page('keeper')->delete();
+		$this->fresh()->page('note')->delete();
+
+		// plus a broken entry without meta.json — unlistable
+		// entries can never be kept and stay removable
+		$this->createPage('broken');
+		$this->fresh()->page('broken')->delete();
+		$ids = array_column($this->trash()->items(), 'trashId', 'id');
+		F::remove($this->trash()->root() . '/' . $ids['broken'] . '/meta.json');
+		$this->trash()->flushIndex();
+
+		$this->trash()->postpone($ids['keeper'], true);
+
+		// removable: note + broken; spared: keeper
+		$stats = $this->trash()->emptyStats();
+		$this->assertSame(2, $stats['count']);
+		$this->assertSame(1, $stats['kept']);
+		$this->assertGreaterThan(0, $stats['size']);
+
+		$area  = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$props = $area['views'][0]['action']()['props'];
+		$this->assertSame(3, $props['total']);
+		$this->assertSame(2, $props['removable']);
+
+		// the dialog counts only what it will remove and names
+		// what it spares; emptying says so too and keeps its word
+		$dialogs = $area['dialogs'];
+		$text    = $dialogs['trash.empty']['load']()['props']['text'];
+		$this->assertStringContainsString('all 2 items', $text);
+		$this->assertStringContainsString('1 indefinitely kept item is spared.', $text);
+
+		$result = $dialogs['trash.empty']['submit']();
+		$this->assertSame(
+			'The trash has been emptied — indefinitely kept items remain',
+			$result['message']
+		);
+		$this->assertSame(['keeper'], array_column($this->trash()->items(), 'id'));
+
+		// with only the kept item left, there is nothing to empty:
+		// the button gate drops to zero
+		$props = $area['views'][0]['action']()['props'];
+		$this->assertSame(0, $props['removable']);
+		$this->assertSame(1, $props['total']);
 	}
 
 	public function testPostponeRejectsPastAndInvalidDates(): void
@@ -671,11 +725,12 @@ final class TrashTest extends TestCase
 		$area  = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
 		$props = $area['views'][0]['action']()['props'];
 
-		// the header button is gated on `total` rather than on the
-		// table rows, so the one action that can remove such an entry
-		// stays reachable instead of leaving it stuck on disk
+		// the header button is gated on `removable` rather than on
+		// the table rows, so the one action that can remove such an
+		// entry stays reachable instead of leaving it stuck on disk
 		$this->assertCount(0, $props['items']);
 		$this->assertSame(1, $props['total']);
+		$this->assertSame(1, $props['removable']);
 
 		// ... and the view accounts for the entry instead of
 		// claiming an empty trash right below an active button

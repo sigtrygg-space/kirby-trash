@@ -109,12 +109,15 @@ App::plugin('sigtrygg-space/kirby-trash', [
 									'canRestore' => $trash->can('restore'),
 									'canDelete'  => $trash->can('delete'),
 									// number of entries in the trash, incl. the
-									// ones without a readable meta.json: they
-									// never make it into `items`, so the
-									// empty-trash button is gated on this count
-									// instead — otherwise nothing in the Panel
-									// could remove them
+									// ones without a readable meta.json: gates
+									// the "trash is empty" claim
 									'total'      => $trash->count(),
+									// what "empty trash" would actually remove
+									// (kept items excluded, broken entries
+									// included) — gates the empty-trash button:
+									// with only kept items left, emptying would
+									// be a no-op and the button disappears
+									'removable'  => $trash->emptyStats()['count'],
 									// note about the entries behind the
 									// difference between `total` and `items`
 									'unlisted'   => $trash->unlistedLabel(),
@@ -364,17 +367,23 @@ App::plugin('sigtrygg-space/kirby-trash', [
 							$trash->ensure('delete');
 
 							// counts what emptying actually removes —
-							// broken entries without meta.json included
-							$count = $trash->count();
-							$key   = $count === 1 ? 'one' : 'many';
+							// broken entries without meta.json included,
+							// indefinitely kept items excluded
+							$stats = $trash->emptyStats();
+							$key   = $stats['count'] === 1 ? 'one' : 'many';
+							$text  = I18n::template('sigtrygg-space.kirby-trash.dialog.empty.' . $key, null, [
+								'count' => $stats['count'],
+								'size'  => F::niceSize($stats['size']),
+							]);
+
+							if ($stats['kept'] > 0) {
+								$text .= ' ' . I18n::translateCount('sigtrygg-space.kirby-trash.dialog.empty.kept', $stats['kept']);
+							}
 
 							return [
 								'component' => 'k-remove-dialog',
 								'props' => [
-									'text' => I18n::template('sigtrygg-space.kirby-trash.dialog.empty.' . $key, null, [
-										'count' => $count,
-										'size'  => F::niceSize($trash->totalSize()),
-									]),
+									'text' => $text,
 									'submitButton' => [
 										'icon' => 'trash',
 										'text' => I18n::translate('sigtrygg-space.kirby-trash.emptyTrash'),
@@ -387,8 +396,12 @@ App::plugin('sigtrygg-space/kirby-trash', [
 							$trash->ensure('delete');
 							$trash->emptyTrash();
 
+							// kept items survive by design — say so instead
+							// of claiming an empty trash next to a full list
+							$key = $trash->count() > 0 ? 'emptiedExceptKept' : 'emptied';
+
 							return [
-								'message' => I18n::translate('sigtrygg-space.kirby-trash.notification.emptied'),
+								'message' => I18n::translate('sigtrygg-space.kirby-trash.notification.' . $key),
 							];
 						},
 					],

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0 (unreleased)
+
+- "Empty trash" spares indefinitely kept items: they were put under
+  explicit protection, so only their own delete action removes them.
+  The confirmation dialog counts and measures only what emptying
+  will actually remove and says how many kept items are spared, the
+  success message distinguishes the two outcomes, and the header
+  button disappears when nothing removable remains. Broken entries
+  without a readable meta.json stay removable as before
+
 ## 0.6.1 (2026-08-19)
 
 - The postpone dialog's submit button says "Save" instead of
