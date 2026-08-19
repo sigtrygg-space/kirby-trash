@@ -6,14 +6,12 @@
     "sigtrygg-space.kirby-trash.delete": "Endgültig löschen",
     "sigtrygg-space.kirby-trash.emptyTrash": "Papierkorb leeren",
     "sigtrygg-space.kirby-trash.details": "Details",
-    "sigtrygg-space.kirby-trash.postpone": [
-        "Noch {count} Tage aufbewahren",
-        "Noch einen Tag aufbewahren",
-        "Noch {count} Tage aufbewahren"
-    ],
-    "sigtrygg-space.kirby-trash.dialog.postpone.one": "\"{title}\" noch einen Tag aufbewahren? Die Aufbewahrungsfrist beginnt ab jetzt neu.",
-    "sigtrygg-space.kirby-trash.dialog.postpone.many": "\"{title}\" noch {days} Tage aufbewahren? Die Aufbewahrungsfrist beginnt ab jetzt neu.",
+    "sigtrygg-space.kirby-trash.postpone": "Länger aufbewahren",
+    "sigtrygg-space.kirby-trash.postpone.until": "Aufbewahren bis",
+    "sigtrygg-space.kirby-trash.postpone.forever": "Dauerhaft aufbewahren",
+    "sigtrygg-space.kirby-trash.postpone.forever.help": "Schützt den Eintrag vor der automatischen Bereinigung. Wiederherstellen und manuelles Löschen bleiben möglich.",
     "sigtrygg-space.kirby-trash.notification.postponed": "Löschung aufgeschoben",
+    "sigtrygg-space.kirby-trash.notification.kept": "Wird dauerhaft aufbewahrt",
     "sigtrygg-space.kirby-trash.cleaned.one": "1 abgelaufener Eintrag wurde soeben von der automatischen Bereinigung entfernt.",
     "sigtrygg-space.kirby-trash.cleaned.many": "{count} abgelaufene Einträge wurden soeben von der automatischen Bereinigung entfernt.",
     "sigtrygg-space.kirby-trash.unlisted": [
@@ -46,5 +44,6 @@
     "error.sigtrygg-space.kirby-trash.missingParent": "Die ursprüngliche Elternseite \"{parent}\" existiert nicht mehr",
     "error.sigtrygg-space.kirby-trash.exists": "Das Wiederherstellungsziel existiert bereits",
     "error.sigtrygg-space.kirby-trash.permission": "Dazu hast du keine Berechtigung",
+    "error.sigtrygg-space.kirby-trash.pastDate": "Das Datum muss in der Zukunft liegen",
     "error.sigtrygg-space.kirby-trash.disabled": "Der Papierkorb ist deaktiviert"
 }

@@ -8,6 +8,7 @@ use Kirby\Cms\File;
 use Kirby\Cms\Page;
 use Kirby\Data\Data;
 use Kirby\Exception\DuplicateException;
+use Kirby\Exception\InvalidArgumentException;
 use Kirby\Exception\NotFoundException;
 use Kirby\Filesystem\Dir;
 use Kirby\Filesystem\F;
@@ -384,16 +385,104 @@ final class TrashTest extends TestCase
 		$area    = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
 		$dialogs = $area['dialogs'];
 
+		// a form dialog with a date field (default: one retention
+		// cycle from now) and the "keep indefinitely" toggle
 		$load = $dialogs['trash.postpone']['load']($item['trashId']);
-		$this->assertSame('k-text-dialog', $load['component']);
-		$this->assertStringContainsString('Note', $load['props']['text']);
-		$this->assertStringContainsString('another 30 days', $load['props']['text']);
+		$this->assertSame('k-form-dialog', $load['component']);
+		$this->assertSame('date', $load['props']['fields']['until']['type']);
+		$this->assertSame('toggle', $load['props']['fields']['forever']['type']);
+		$this->assertSame(date('Y-m-d', time() + 30 * 86400), $load['props']['value']['until']);
+		$this->assertFalse($load['props']['value']['forever']);
 
-		$result = $dialogs['trash.postpone']['submit']($item['trashId']);
+		// submitting a chosen date keeps the item for that whole day
+		$until = date('Y-m-d', time() + 45 * 86400);
+		$this->kirby = $this->app([], ['request' => ['query' => [
+			'until'   => $until,
+			'forever' => false,
+		]]]);
+		$area    = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$dialogs = $area['dialogs'];
+		$result  = $dialogs['trash.postpone']['submit']($item['trashId']);
 		$this->assertSame('Deletion postponed', $result['message']);
 
 		$meta = Data::read($this->trash()->root() . '/' . $item['trashId'] . '/meta.json', 'json');
-		$this->assertNotEmpty($meta['keepUntil']);
+		$this->assertSame(strtotime($until . ' 23:59:59'), strtotime($meta['keepUntil']));
+
+		// the dialog now prefills with the stored date …
+		$load = $dialogs['trash.postpone']['load']($item['trashId']);
+		$this->assertSame($until, $load['props']['value']['until']);
+
+		// … and submitting the toggle keeps the item indefinitely
+		$this->kirby = $this->app([], ['request' => ['query' => [
+			'until'   => $until,
+			'forever' => true,
+		]]]);
+		$area    = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$dialogs = $area['dialogs'];
+		$result  = $dialogs['trash.postpone']['submit']($item['trashId']);
+		$this->assertSame('Kept indefinitely', $result['message']);
+
+		$meta = Data::read($this->trash()->root() . '/' . $item['trashId'] . '/meta.json', 'json');
+		$this->assertTrue($meta['keepUntil']);
+		$this->assertTrue($dialogs['trash.postpone']['load']($item['trashId'])['props']['value']['forever']);
+	}
+
+	public function testKeepIndefinitelyProtectsFromCleanupOnly(): void
+	{
+		$this->createPage('keeper');
+		$this->createPage('other');
+		$this->fresh()->page('keeper')->delete();
+		$this->fresh()->page('other')->delete();
+		$this->backdateItem('keeper', 40);
+		$this->backdateItem('other', 1);
+
+		$keeper = array_column($this->trash()->items(), 'trashId', 'id')['keeper'];
+		$this->trash()->postpone($keeper, true);
+
+		// never expires: survives cleanup despite the long-past
+		// deletion date, neither warns nor counts as expired, and
+		// the badge treats it as live
+		$this->assertSame(0, $this->trash()->cleanup());
+		$this->assertSame(0, $this->trash()->expiredCount());
+		$this->assertSame(2, $this->trash()->badge()['text']);
+
+		// sorts above everything and reads "Kept forever"
+		$rows = $this->trash()->panelItems();
+		$this->assertSame('keeper', $rows[0]['path']);
+		$this->assertSame('Kept forever', $rows[0]['remaining']);
+		$this->assertFalse($rows[0]['expiresSoon']);
+
+		// still postponable: the dialog can revert it to a date
+		// (after which "other", expiring later, leads the list again)
+		$this->assertTrue($rows[0]['postponable']);
+		$this->trash()->postpone($keeper, date('Y-m-d', time() + 86400));
+		$reverted = array_column($this->trash()->panelItems(), null, 'path')['keeper'];
+		$this->assertNotSame('Kept forever', $reverted['remaining']);
+		$this->assertSame('other', $this->trash()->panelItems()[0]['path']);
+
+		// manual removal always works — only the automatic cleanup
+		// respects the flag
+		$this->trash()->postpone($keeper, true);
+		$this->trash()->delete($keeper);
+		$this->assertCount(1, $this->trash()->items());
+	}
+
+	public function testPostponeRejectsPastAndInvalidDates(): void
+	{
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$trashId = $this->trash()->items()[0]['trashId'];
+
+		try {
+			$this->trash()->postpone($trashId, date('Y-m-d', time() - 86400));
+			$this->fail('a past date must be rejected');
+		} catch (InvalidArgumentException $e) {
+			$this->assertSame('error.sigtrygg-space.kirby-trash.pastDate', $e->getKey());
+		}
+
+		$this->expectException(InvalidArgumentException::class);
+		$this->trash()->postpone($trashId, 'not a date');
 	}
 
 	public function testPostponeUnavailableWithoutRetention(): void
@@ -452,14 +541,16 @@ final class TrashTest extends TestCase
 		$this->trash()->postpone($trashId);
 	}
 
-	public function testPostponeLabelPluralizes(): void
+	public function testPostponeLabelIsGeneric(): void
 	{
-		$this->assertSame('Keep for another 30 days', $this->trash()->postponeLabel());
+		// generic since the dialog offers free dates and indefinite
+		// keeping; null when retention is disabled (nothing expires)
+		$this->assertSame('Keep longer', $this->trash()->postponeLabel());
 
 		$this->kirby = $this->app([
-			'sigtrygg-space.kirby-trash.retentionDays' => 1,
+			'sigtrygg-space.kirby-trash.retentionDays' => -1,
 		]);
-		$this->assertSame('Keep for one more day', $this->trash()->postponeLabel());
+		$this->assertNull($this->trash()->postponeLabel());
 	}
 
 	public function testBadgeTurnsRedWhenOnlyExpiredItemsRemain(): void

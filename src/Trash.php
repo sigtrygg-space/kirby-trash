@@ -9,6 +9,7 @@ use Kirby\Cms\Page;
 use Kirby\Cms\Site;
 use Kirby\Data\Data;
 use Kirby\Exception\DuplicateException;
+use Kirby\Exception\InvalidArgumentException;
 use Kirby\Exception\NotFoundException;
 use Kirby\Exception\PermissionException;
 use Kirby\Filesystem\Dir;
@@ -567,7 +568,13 @@ class Trash
 	 * meta field instead of re-stamping `deletedAt`, so the
 	 * "Deleted" column keeps telling the truth.
 	 */
-	public function postpone(string $id): void
+	/**
+	 * `$until` accepts a date string ("keep until …"), `true`
+	 * ("keep indefinitely" — only the automatic cleanup spares the
+	 * item; manual delete and empty-trash still remove it) or null
+	 * for the classic one-retention-cycle-from-now default
+	 */
+	public function postpone(string $id, string|bool|null $until = null): void
 	{
 		$days = $this->retentionDays();
 		$id   = $this->validateId($id);
@@ -586,10 +593,40 @@ class Trash
 			throw $this->notFound();
 		}
 
-		$meta['keepUntil'] = date('c', time() + $days * 86400);
+		$meta['keepUntil'] = match (true) {
+			$until === true    => true,
+			is_string($until)  => date('c', $this->futureTime($until)),
+			default            => date('c', time() + $days * 86400),
+		};
+
 		Data::write($file, $meta, 'json');
 
 		$this->flushIndex();
+	}
+
+	/**
+	 * Parses a user-provided "keep until" date and enforces that it
+	 * lies in the future — a past keepUntil would expire the item
+	 * instantly, the opposite of what postponing promises
+	 */
+	protected function futureTime(string $date): int
+	{
+		// a plain date means "keep for the whole of that day" —
+		// midnight would expire the item at the day's very start
+		if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1) {
+			$date .= ' 23:59:59';
+		}
+
+		$time = strtotime($date);
+
+		if ($time === false || $time <= time()) {
+			throw new InvalidArgumentException(
+				key: 'sigtrygg-space.kirby-trash.pastDate',
+				fallback: 'The date must lie in the future'
+			);
+		}
+
+		return $time;
 	}
 
 	/**
@@ -611,6 +648,11 @@ class Trash
 	 */
 	protected function sortRank(array $meta, int|null $days): int
 	{
+		// indefinitely kept items live longest of all
+		if (($meta['keepUntil'] ?? null) === true) {
+			return PHP_INT_MAX;
+		}
+
 		$rank = $days === null ? null : $this->expiresAt($meta, $days);
 
 		return $rank ?? $this->metaTime($meta, 'deletedAt') ?? 0;
@@ -619,10 +661,16 @@ class Trash
 	/**
 	 * Effective expiry timestamp of an item: an explicit
 	 * `keepUntil` (set by postpone()) wins over the regular
-	 * `deletedAt` + retention
+	 * `deletedAt` + retention; `keepUntil: true` means the item
+	 * never expires — only the automatic cleanup respects that,
+	 * manual delete and empty-trash still remove it
 	 */
 	protected function expiresAt(array $meta, int $days): int|null
 	{
+		if (($meta['keepUntil'] ?? null) === true) {
+			return null;
+		}
+
 		if (($keepUntil = $this->metaTime($meta, 'keepUntil')) !== null) {
 			return $keepUntil;
 		}
@@ -658,13 +706,13 @@ class Trash
 	 */
 	public function postponeLabel(): string|null
 	{
-		$days = $this->retentionDays();
-
-		if ($days === null) {
+		if ($this->retentionDays() === null) {
 			return null;
 		}
 
-		return I18n::translateCount('sigtrygg-space.kirby-trash.postpone', $days);
+		// generic since the dialog offers a free date and
+		// indefinite keeping — no fixed "+N days" anymore
+		return I18n::translate('sigtrygg-space.kirby-trash.postpone', 'Keep longer');
 	}
 
 	/**
