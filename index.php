@@ -276,8 +276,20 @@ App::plugin('sigtrygg-space/kirby-trash', [
 
 							$request = App::instance()->request();
 							$forever = filter_var($request->get('forever'), FILTER_VALIDATE_BOOLEAN);
+							$until   = $request->get('until');
 
-							$trash->postpone($id, $forever === true ? true : $request->get('until'));
+							// the date field serializes an edited value as
+							// "Y-m-d 00:00:00" while an untouched prefill
+							// stays "Y-m-d". The dialog means a plain day
+							// either way, so reduce to the date part —
+							// postpone() then keeps the item for that
+							// whole day instead of expiring it at the
+							// day's very start
+							if (is_string($until) === true) {
+								$until = substr($until, 0, 10);
+							}
+
+							$trash->postpone($id, $forever === true ? true : $until);
 
 							return [
 								'message' => I18n::translate(
