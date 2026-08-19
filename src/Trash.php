@@ -425,10 +425,16 @@ class Trash
 			$items[] = $meta;
 		}
 
+		// latest expiry first: identical to "newest deletion first"
+		// as long as nothing is postponed, but a postponed item moves
+		// up — it now lives longest. Without an expiry (retention
+		// disabled, corrupt meta) the deletion date takes over.
+		$days = $this->retentionDays();
+
 		usort(
 			$items,
 			fn (array $a, array $b) =>
-				strcmp($b['deletedAt'] ?? '', $a['deletedAt'] ?? '')
+				$this->sortRank($b, $days) <=> $this->sortRank($a, $days)
 		);
 
 		return $this->index = $items;
@@ -595,6 +601,19 @@ class Trash
 	protected function postponable(array $meta, int|null $days): bool
 	{
 		return $days !== null && $this->metaTime($meta, 'deletedAt') !== null;
+	}
+
+	/**
+	 * Position of an item in the trash list: the expiry timestamp
+	 * when there is one, the deletion timestamp otherwise (retention
+	 * disabled, or corrupt metadata — which thereby sinks to the
+	 * bottom, as before)
+	 */
+	protected function sortRank(array $meta, int|null $days): int
+	{
+		$rank = $days === null ? null : $this->expiresAt($meta, $days);
+
+		return $rank ?? $this->metaTime($meta, 'deletedAt') ?? 0;
 	}
 
 	/**
