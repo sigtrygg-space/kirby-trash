@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1 (unreleased)
+
+- The postpone dialog's submit button says "Save" instead of
+  repeating "Keep longer" — the dialog can also shorten the
+  retention or switch to indefinite keeping, and the button sits
+  exactly where that choice is made
+
 ## 0.6.0 (2026-08-19)
 
 - The trash list sorts by expiry date (latest first) instead of
