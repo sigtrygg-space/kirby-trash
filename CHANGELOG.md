@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0 (unreleased)
+## 0.7.0 (2026-08-21)
 
 - "Empty trash" spares indefinitely kept items: they were put under
   explicit protection, so only their own delete action removes them.
