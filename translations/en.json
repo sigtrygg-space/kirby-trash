@@ -44,6 +44,6 @@
     "error.sigtrygg-space.kirby-trash.missingParent": "The original parent page \"{parent}\" does not exist anymore",
     "error.sigtrygg-space.kirby-trash.exists": "The restore target already exists",
     "error.sigtrygg-space.kirby-trash.permission": "You are not allowed to do this",
-    "error.sigtrygg-space.kirby-trash.pastDate": "The date must lie in the future",
+    "error.sigtrygg-space.kirby-trash.pastDate": "The earliest possible date is tomorrow",
     "error.sigtrygg-space.kirby-trash.disabled": "The trash is disabled"
 }

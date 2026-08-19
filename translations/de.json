@@ -44,6 +44,6 @@
     "error.sigtrygg-space.kirby-trash.missingParent": "Die ursprüngliche Elternseite \"{parent}\" existiert nicht mehr",
     "error.sigtrygg-space.kirby-trash.exists": "Das Wiederherstellungsziel existiert bereits",
     "error.sigtrygg-space.kirby-trash.permission": "Dazu hast du keine Berechtigung",
-    "error.sigtrygg-space.kirby-trash.pastDate": "Das Datum muss in der Zukunft liegen",
+    "error.sigtrygg-space.kirby-trash.pastDate": "Das früheste mögliche Datum ist morgen",
     "error.sigtrygg-space.kirby-trash.disabled": "Der Papierkorb ist deaktiviert"
 }

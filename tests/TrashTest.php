@@ -474,11 +474,15 @@ final class TrashTest extends TestCase
 
 		$trashId = $this->trash()->items()[0]['trashId'];
 
-		try {
-			$this->trash()->postpone($trashId, date('Y-m-d', time() - 86400));
-			$this->fail('a past date must be rejected');
-		} catch (InvalidArgumentException $e) {
-			$this->assertSame('error.sigtrygg-space.kirby-trash.pastDate', $e->getKey());
+		// past dates, today (the dialog's min is tomorrow — the
+		// server enforces the same contract) and garbage all fail
+		foreach ([date('Y-m-d', time() - 86400), date('Y-m-d')] as $date) {
+			try {
+				$this->trash()->postpone($trashId, $date);
+				$this->fail($date . ' must be rejected');
+			} catch (InvalidArgumentException $e) {
+				$this->assertSame('error.sigtrygg-space.kirby-trash.pastDate', $e->getKey());
+			}
 		}
 
 		$this->expectException(InvalidArgumentException::class);

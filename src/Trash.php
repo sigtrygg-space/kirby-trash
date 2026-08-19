@@ -563,16 +563,13 @@ class Trash
 	}
 
 	/**
-	 * Postpones the automatic cleanup of an item by one retention
-	 * cycle from now. Deliberately implemented via a `keepUntil`
-	 * meta field instead of re-stamping `deletedAt`, so the
-	 * "Deleted" column keeps telling the truth.
-	 */
-	/**
-	 * `$until` accepts a date string ("keep until …"), `true`
-	 * ("keep indefinitely" — only the automatic cleanup spares the
-	 * item; manual delete and empty-trash still remove it) or null
-	 * for the classic one-retention-cycle-from-now default
+	 * Postpones the automatic cleanup of an item. `$until` accepts
+	 * a date string ("keep until …"), `true` ("keep indefinitely" —
+	 * only the automatic cleanup spares the item; manual delete and
+	 * empty-trash still remove it) or null for one retention cycle
+	 * from now. Deliberately implemented via a `keepUntil` meta
+	 * field instead of re-stamping `deletedAt`, so the "Deleted"
+	 * column keeps telling the truth.
 	 */
 	public function postpone(string $id, string|bool|null $until = null): void
 	{
@@ -605,9 +602,11 @@ class Trash
 	}
 
 	/**
-	 * Parses a user-provided "keep until" date and enforces that it
-	 * lies in the future — a past keepUntil would expire the item
-	 * instantly, the opposite of what postponing promises
+	 * Parses a user-provided "keep until" date and enforces the
+	 * dialog's contract server-side: tomorrow at the earliest.
+	 * A past keepUntil would expire the item instantly — the
+	 * opposite of what postponing promises — and "today" would
+	 * fall short of what the date field's `min` allows.
 	 */
 	protected function futureTime(string $date): int
 	{
@@ -619,10 +618,10 @@ class Trash
 
 		$time = strtotime($date);
 
-		if ($time === false || $time <= time()) {
+		if ($time === false || $time < strtotime('tomorrow')) {
 			throw new InvalidArgumentException(
 				key: 'sigtrygg-space.kirby-trash.pastDate',
-				fallback: 'The date must lie in the future'
+				fallback: 'The earliest possible date is tomorrow'
 			);
 		}
 
