@@ -231,21 +231,41 @@ App::plugin('sigtrygg-space/kirby-trash', [
 							}
 
 							$days = $trash->retentionDays();
+							$meta = $trash->item($id);
 
 							return [
-								'component' => 'k-text-dialog',
+								'component' => 'k-form-dialog',
 								'props' => [
-									'text' => I18n::template(
-										'sigtrygg-space.kirby-trash.dialog.postpone.' . ($days === 1 ? 'one' : 'many'),
-										null,
-										[
-											'title' => Escape::html($row['title']),
-											'days'  => $days,
-										]
-									),
+									'fields' => [
+										'forever' => [
+											'type'  => 'toggle',
+											'label' => I18n::translate('sigtrygg-space.kirby-trash.postpone.forever'),
+											// only the automatic cleanup spares the
+											// item; delete and empty-trash still work
+											'help'  => I18n::translate('sigtrygg-space.kirby-trash.postpone.forever.help'),
+										],
+										'until' => [
+											'type'     => 'date',
+											'time'     => false,
+											'label'    => I18n::translate('sigtrygg-space.kirby-trash.postpone.until'),
+											'min'      => date('Y-m-d', time() + 86400),
+											'required' => true,
+											// hidden while "keep indefinitely" is on
+											'when'     => ['forever' => false],
+										],
+									],
 									'submitButton' => [
 										'icon' => 'clock',
 										'text' => $trash->postponeLabel(),
+									],
+									'value' => [
+										'forever' => ($meta['keepUntil'] ?? null) === true,
+										// prefill: the current keepUntil date, or one
+										// retention cycle from now — submitting the
+										// default equals the classic postpone
+										'until'   => is_string($meta['keepUntil'] ?? null)
+											? date('Y-m-d', strtotime($meta['keepUntil']) ?: time() + $days * 86400)
+											: date('Y-m-d', time() + $days * 86400),
 									],
 								],
 							];
@@ -253,10 +273,16 @@ App::plugin('sigtrygg-space/kirby-trash', [
 						'submit' => function (string $id) {
 							$trash = Trash::instance();
 							$trash->ensure('restore');
-							$trash->postpone($id);
+
+							$request = App::instance()->request();
+							$forever = filter_var($request->get('forever'), FILTER_VALIDATE_BOOLEAN);
+
+							$trash->postpone($id, $forever === true ? true : $request->get('until'));
 
 							return [
-								'message' => I18n::translate('sigtrygg-space.kirby-trash.notification.postponed'),
+								'message' => I18n::translate(
+									'sigtrygg-space.kirby-trash.notification.' . ($forever === true ? 'kept' : 'postponed')
+								),
 							];
 						},
 					],

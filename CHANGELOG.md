@@ -6,6 +6,13 @@
   deletion date — identical as long as nothing is postponed, but a
   postponed item now moves up: it lives longest. Without an expiry
   (retention disabled) the deletion date keeps deciding
+- Postponing is no longer a fixed "+1 retention cycle": the dialog
+  offers a free "Keep until" date — prefilled with one cycle, so
+  the quick path stays two clicks — and a "Keep indefinitely"
+  toggle that protects the item from the automatic cleanup
+  (restoring and manual deletion still work; such items sort above
+  everything and read "Kept forever"). A chosen date keeps the
+  item for that whole day; past dates are rejected
 
 ## 0.5.1 (2026-08-10)
 
