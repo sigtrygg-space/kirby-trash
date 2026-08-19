@@ -60,10 +60,12 @@ a last chance to restore before the automatic cleanup removes them.
 Not sure yet? Every item can be kept longer via its options menu
 (requires the `restore` permission): until a date of your choice —
 prefilled with one more retention cycle — or indefinitely, which
-protects it from the automatic cleanup entirely (restoring and manual
-deletion still work). Each item can be restored
-or deleted permanently; the header button empties the whole trash (with a
-confirmation dialog showing the number of items and total size).
+protects it from the automatic cleanup and from "Empty trash" (it can
+still be restored, or removed via its own delete action). Each item
+can be restored or deleted permanently; the header button empties the
+whole trash (with a confirmation dialog showing the number of items
+and total size — indefinitely kept items are spared and listed as
+such).
 
 On small screens the table is reduced to the most important columns; the
 options menu of every row therefore also offers a details dialog with all

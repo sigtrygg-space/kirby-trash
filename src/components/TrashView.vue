@@ -4,7 +4,7 @@
       {{ $t("sigtrygg-space.kirby-trash.title") }}
       <template #buttons>
         <k-button
-          v-if="total > 0 && canDelete && !issue"
+          v-if="removable > 0 && canDelete && !issue"
           icon="trash"
           variant="filled"
           theme="negative"
@@ -78,10 +78,17 @@ export default {
     canRestore: Boolean,
     canDelete: Boolean,
     // number of entries in the trash, including the ones whose
-    // meta.json is unreadable — those never reach `items`, so
-    // gating the empty-trash button on the table rows would leave
-    // no way to remove them from the Panel
+    // meta.json is unreadable — gates the "trash is empty" claim
     total: {
+      type: Number,
+      default: 0
+    },
+    // what "empty trash" would actually remove: unreadable entries
+    // included (they never reach `items`, and the button is their
+    // only way out of the Panel), indefinitely kept items excluded
+    // — with only kept items left, emptying would be a no-op and
+    // the button hides
+    removable: {
       type: Number,
       default: 0
     },

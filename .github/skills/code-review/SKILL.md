@@ -21,9 +21,9 @@ hooks, the Panel area with backend-defined dialogs, and a CLI command.
   previews. Numbers and CSS length strings are row-height values and
   keep previews enabled — that overloading is deliberate.
 - **`keepUntil` meta field:** carries a date string *or* `true`
-  (= keep indefinitely; only the automatic cleanup respects it, manual
-  delete and empty-trash still remove the item). Type checks against
-  both shapes are intentional.
+  (= keep indefinitely; the automatic cleanup and "empty trash" spare
+  such items, only their own delete action removes them). Type checks
+  against both shapes are intentional.
 - **Committed `index.js` / `index.css`:** build artifacts, precompiled
   from `src/` with kirbyup. Do not review their diffs; review the
   sources instead — `src/index.js` (the entrypoint registering

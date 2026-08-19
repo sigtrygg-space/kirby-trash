@@ -515,8 +515,10 @@ class Trash
 	}
 
 	/**
-	 * Removes all trash items permanently,
-	 * including broken entries without meta.json
+	 * Removes all trash items permanently, including broken entries
+	 * without meta.json — but spares indefinitely kept items: those
+	 * were put under explicit protection and can only be removed
+	 * individually via their own delete action
 	 */
 	public function emptyTrash(): void
 	{
@@ -526,13 +528,91 @@ class Trash
 			return;
 		}
 
+		// flipped for O(1) lookups per directory entry
+		$kept = array_flip($this->keptIds());
+
 		foreach (Dir::read($root) as $entry) {
+			if (isset($kept[$entry]) === true) {
+				continue;
+			}
+
 			$path = $root . '/' . $entry;
 			is_dir($path) === true ? Dir::remove($path) : F::remove($path);
 		}
 
+		// previews are cache: dropping the folder also hits thumbs
+		// of kept items, which simply regenerate on the next request
 		Dir::remove($this->previewRoot());
 		$this->flushIndex();
+	}
+
+	/**
+	 * Trash ids of indefinitely kept items — the entries that
+	 * "empty trash" spares. Unlistable entries (no readable
+	 * meta.json) can never be kept and stay removable.
+	 */
+	protected function keptIds(): array
+	{
+		return array_column(
+			array_filter(
+				$this->items(),
+				fn (array $meta) => ($meta['keepUntil'] ?? null) === true
+			),
+			'trashId'
+		);
+	}
+
+	/**
+	 * Number of entries "empty trash" would remove — the size-free
+	 * companion of emptyStats(), cheap enough to gate the header
+	 * button on every view request (a directory count minus the
+	 * kept items; no recursive byte measuring)
+	 */
+	public function removableCount(): int
+	{
+		return max(0, $this->count() - count($this->keptIds()));
+	}
+
+	/**
+	 * What "empty trash" would remove: the number of entries and
+	 * their bytes — excluding indefinitely kept items — plus how
+	 * many kept items are spared. Powers the confirmation dialog;
+	 * measured one entry at a time for the same reasons as
+	 * totalSize(). The view's button gating uses the cheaper
+	 * removableCount() instead.
+	 */
+	public function emptyStats(): array
+	{
+		$root  = $this->root();
+		$kept  = array_flip($this->keptIds());
+		$stats = ['count' => 0, 'size' => 0, 'kept' => count($kept)];
+
+		if (is_dir($root) === false) {
+			return $stats;
+		}
+
+		try {
+			$entries = Dir::read($root);
+		} catch (Throwable) {
+			return $stats;
+		}
+
+		foreach ($entries as $entry) {
+			if (isset($kept[$entry]) === true) {
+				continue;
+			}
+
+			$stats['count']++;
+			$path = $root . '/' . $entry;
+
+			try {
+				$stats['size'] += (is_dir($path) === true ? Dir::size($path) : F::size($path)) ?: 0;
+			} catch (Throwable) {
+				continue;
+			}
+		}
+
+		return $stats;
 	}
 
 	/**
@@ -565,9 +645,9 @@ class Trash
 	/**
 	 * Postpones the automatic cleanup of an item. `$until` accepts
 	 * a date string ("keep until …"), `true` ("keep indefinitely" —
-	 * only the automatic cleanup spares the item; manual delete and
-	 * empty-trash still remove it) or null for one retention cycle
-	 * from now. Deliberately implemented via a `keepUntil` meta
+	 * spared by the automatic cleanup and by "empty trash"; only
+	 * its own delete action removes it) or null for one retention
+	 * cycle from now. Deliberately implemented via a `keepUntil` meta
 	 * field instead of re-stamping `deletedAt`, so the "Deleted"
 	 * column keeps telling the truth.
 	 */
@@ -661,8 +741,8 @@ class Trash
 	 * Effective expiry timestamp of an item: an explicit
 	 * `keepUntil` (set by postpone()) wins over the regular
 	 * `deletedAt` + retention; `keepUntil: true` means the item
-	 * never expires — only the automatic cleanup respects that,
-	 * manual delete and empty-trash still remove it
+	 * never expires — the automatic cleanup and "empty trash"
+	 * spare it, only its own delete action removes it
 	 */
 	protected function expiresAt(array $meta, int $days): int|null
 	{
@@ -717,8 +797,9 @@ class Trash
 	/**
 	 * Number of bytes the trash occupies on disk. Measured on the
 	 * root rather than summed from the stored `size` fields, so
-	 * entries without a readable meta.json count too — the
-	 * empty-trash dialog promises to free exactly this much.
+	 * entries without a readable meta.json count too. (The
+	 * empty-trash dialog uses emptyStats() instead, which
+	 * additionally excludes indefinitely kept items.)
 	 * An unreadable root reports 0, like items() and count(), and the
 	 * Panel area explains the problem via rootIssue(). Measured one
 	 * entry at a time because Dir::size() recurses and throws on any
