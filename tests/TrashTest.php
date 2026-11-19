@@ -56,7 +56,16 @@ final class TrashTest extends TestCase
 				'sessions'   => $this->tmp . '/sessions',
 				'cache'      => $this->tmp . '/cache',
 			],
-			'options' => $options,
+			// a predefined CSRF token keeps the preview URLs (which
+			// carry it) from opening a file session: Kirby sets the
+			// session cookie in $_COOKIE, so a second App instance in
+			// the same process (e.g. via fresh()) would pick up that
+			// session and block on its lock. `panel.dev` keeps Kirby's
+			// eagerly computed fallback token session-free as well.
+			'options' => array_replace_recursive([
+				'api'   => ['csrf' => 'test-csrf'],
+				'panel' => ['dev' => true],
+			], $options),
 			...$props,
 		]);
 
@@ -1302,7 +1311,8 @@ final class TrashTest extends TestCase
 		// the row links its image object to the preview route
 		$row = $this->trash()->panelItems()[0];
 		$this->assertSame(
-			$this->kirby->url('panel') . '/trash/preview/' . $row['trashId'],
+			$this->kirby->url('panel') . '/trash/preview/' . $row['trashId']
+				. '?csrf=' . $this->kirby->auth()->csrfFromSession(),
 			$row['image']['src']
 		);
 		$this->assertTrue($row['image']['cover']);
@@ -1329,6 +1339,66 @@ final class TrashTest extends TestCase
 		$this->assertSame('64/48', $this->trash()->previewRatio($row['trashId']));
 		$load = $area['dialogs']['trash.details']['load']($row['trashId']);
 		$this->assertSame('64/48', $load['props']['ratio']);
+	}
+
+	public function testPreviewUrlPassesThePanelRouterWithARealSession(): void
+	{
+		$this->requireGd();
+
+		// set up as superuser: an admin account and a trashed image
+		$this->kirby->users()->create([
+			'email'    => 'admin@example.com',
+			'role'     => 'admin',
+			'password' => 'secret-password',
+		]);
+		$page = $this->createPage('note');
+		$this->createImageFile($page, 'photo.png');
+		$this->fresh()->page('note')->file('photo.png')->delete();
+
+		// Kirby (5.6.4+) checks the CSRF token of non-view Panel routes
+		// only for session auth — impersonated tests never see it, so
+		// this test logs in for real. A predefined api.csrf keeps the
+		// token identical across the two app instances below.
+		$login = function (array $query = []): App {
+			// end the previous app's session first: a live file session
+			// keeps its lock and would block the next login
+			$this->kirby->session()->destroy();
+
+			$kirby = $this->app(
+				['api' => ['csrf' => 'test-token']],
+				['request' => ['query' => $query]]
+			);
+			$kirby->impersonate(null);
+			$kirby->user('admin@example.com')->loginPasswordless();
+			$this->assertSame('session', $kirby->auth()->type());
+
+			return $kirby;
+		};
+
+		try {
+			// the URL exactly as the plugin emits it for <img src> …
+			$this->kirby = $login();
+			$src = $this->trash()->panelItems()[0]['image']['src'];
+			parse_str((string)parse_url($src, PHP_URL_QUERY), $query);
+			$path = ltrim(substr(parse_url($src, PHP_URL_PATH), strlen('/panel')), '/');
+
+			// … passes the Panel router, CSRF check included
+			$this->kirby = $login($query);
+			$response    = Panel::router($path);
+			$this->assertSame(200, $response->code());
+			$this->assertSame('image/jpeg', $response->type());
+
+			// without the token the same request fails on Kirby versions
+			// that enforce the check — the reason the token is in the URL
+			if (version_compare(App::version(), '5.6.4', '>=') === true) {
+				$this->kirby = $login();
+				$this->assertSame(400, Panel::router($path)->code());
+			}
+		} finally {
+			// destroyed now rather than by a destructor after tearDown()
+			// has already removed the session files
+			$this->kirby->session()->destroy();
+		}
 	}
 
 	public function testNonImageItemsFallBackToTypedIcons(): void
@@ -1440,7 +1510,8 @@ final class TrashTest extends TestCase
 
 		// … which drives the list thumbnail and the endpoint
 		$this->assertSame(
-			$this->kirby->url('panel') . '/trash/preview/' . $row['trashId'],
+			$this->kirby->url('panel') . '/trash/preview/' . $row['trashId']
+				. '?csrf=' . $this->kirby->auth()->csrfFromSession(),
 			$row['image']['src']
 		);
 		$this->assertSame('image/jpeg', $this->trash()->preview($row['trashId'])->type());

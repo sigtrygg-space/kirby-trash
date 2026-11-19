@@ -64,6 +64,11 @@ English (international Kirby community).
   (`\` → `/`, Windows mixes separators within one request).
 - Deleted models: read UUIDs non-generatively; generate only for the
   surviving parent (`uuidOf($parent, generate: true)`).
+- Since Kirby 5.6.4 every Panel route except views (dialogs, drawers,
+  dropdowns, searches, request routes) requires the Panel's CSRF
+  token, also for GETs. `Request::csrf()` reads the `X-CSRF` header or
+  a `csrf` query parameter — resources loaded via `<img src>` (the
+  preview route) must carry it in the URL (`previewUrl()`).
 
 ## Testing gotchas
 
@@ -74,6 +79,13 @@ English (international Kirby community).
   touch the trash root).
 - Permission-based tests skip as superuser (`posix_geteuid() === 0`)
   and run on CI.
+- Impersonated tests never hit Kirby's session-only checks (the
+  CSRF check above). Anything routed through the Panel needs a test
+  with a real `loginPasswordless()` session through `Panel::router()`
+  (see the preview router test). The `app()` helper predefines the
+  CSRF token so ordinary tests open no file sessions: Kirby mirrors
+  the session cookie into `$_COOKIE`, and a second App instance in
+  the same process would block on that session's lock.
 
 ## Release process (automated)
 

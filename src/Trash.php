@@ -1208,11 +1208,26 @@ class Trash
 	 * with the same type-based icons and colors as Kirby's own
 	 * file panels
 	 */
+	/**
+	 * URL of the preview request route for an item. Since Kirby
+	 * 5.6.4 every Panel route except views requires the Panel's
+	 * CSRF token, also for plain GETs. The previews are loaded via
+	 * `<img src>`, which cannot send the `X-CSRF` header, so the
+	 * token travels as the `csrf` query parameter — the second
+	 * channel `Request::csrf()` reads. Older Kirby versions ignore
+	 * the parameter.
+	 */
+	protected function previewUrl(string $id): string
+	{
+		return $this->kirby->url('panel') . '/trash/preview/' . $id
+			. '?csrf=' . rawurlencode($this->kirby->auth()->csrfFromSession());
+	}
+
 	protected function panelImage(array $meta): array
 	{
 		if ($this->previewSource($meta) !== null) {
 			return [
-				'src'   => $this->kirby->url('panel') . '/trash/preview/' . $meta['trashId'],
+				'src'   => $this->previewUrl($meta['trashId']),
 				'back'  => 'pattern',
 				'cover' => true,
 			];
