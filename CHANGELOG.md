@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.1 (unreleased)
+## 0.7.1 (2026-11-19)
 
 - Preview thumbnails work again on Kirby 5.6.4+: the security release
   requires the Panel's CSRF token for every Panel route except views,
