@@ -56,6 +56,11 @@ hooks, the Panel area with backend-defined dialogs, and a CLI command.
   against its item's `data/` folder (`basename` check); everything is
   gated by `ensure('access')` / `ensure('restore')`. Weakening any of
   these is a security regression.
+- **Panel routes other than views need the CSRF token** (Kirby
+  5.6.4+), also for GETs. Anything the browser loads without
+  `fetch()` — like the preview thumbnails via `<img src>` — must carry
+  it as the `csrf` query parameter. A new endpoint without it, or a
+  test that only exercises it impersonated, misses this.
 - **Values that end up in HTML or style attributes** must be strictly
   validated server-side (see `rowHeight()`: only plain positive
   px/rem/em lengths pass) or escaped (`Escape::html` in dialog texts).

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.1 (unreleased)
+
+- Preview thumbnails work again on Kirby 5.6.4+: the security release
+  requires the Panel's CSRF token for every Panel route except views,
+  including plain GETs, and the thumbnails are loaded via `<img>`,
+  which cannot send the `X-CSRF` header. The preview URLs now carry
+  the token as the `csrf` query parameter, the second channel Kirby
+  reads it from; older 5.x versions ignore it
+
 ## 0.7.0 (2026-08-21)
 
 - "Empty trash" spares indefinitely kept items: they were put under
