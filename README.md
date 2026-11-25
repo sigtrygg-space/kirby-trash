@@ -25,7 +25,7 @@ and internal links keep working.
 
 ## Requirements
 
-- Kirby 5.x
+- Kirby 6.x (the Panel build of this branch; Kirby 5.x needs the 0.7 line)
 - PHP 8.2+
 
 ## Installation

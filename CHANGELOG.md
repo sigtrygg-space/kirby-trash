@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- The Panel build works with Kirby 6: the Panel is Vue 3 there and no
+  longer provides a global `Vue`, so the bundle built with kirbyup 3
+  failed to load (`Cannot read properties of undefined (reading '_c')`
+  on the trash view). It is now built with kirbyup 4, which imports Vue
+  from the Panel's import map. The committed `index.js` therefore only
+  runs on Kirby 6; Kirby 5 needs the 0.7 line. The PHP side needed no
+  change
+
 ## 0.7.1 (2026-11-19)
 
 - Preview thumbnails work again on Kirby 5.6.4+: the security release
