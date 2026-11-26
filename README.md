@@ -10,7 +10,7 @@ restored or deleted permanently — via a dedicated Panel area.
 
 Kirby fires `page.delete:before` / `file.delete:before` hooks while the
 content still exists on disk. This plugin copies the affected page folder
-(including all languages, files, subpages and Kirby 5 `_changes` versions)
+(including all languages, files, subpages and `_changes` versions)
 or the file (including all of its content files) into the trash storage and
 then lets Kirby delete as usual.
 
@@ -25,8 +25,13 @@ and internal links keep working.
 
 ## Requirements
 
-- Kirby 5.x
-- PHP 8.2+
+| Plugin | Kirby | PHP | Branch |
+| --- | --- | --- | --- |
+| 1.x | 6 | 8.3+ | `main` |
+| 0.7.x | 5 | 8.2+ | `kirby-5` (maintained for now) |
+
+The menu badge needs Kirby 6.0.1 or newer: Kirby 6.0.0 drops badges
+of Panel menu entries. Everything else works on 6.0.0.
 
 ## Installation
 
@@ -36,15 +41,28 @@ and internal links keep working.
 composer require sigtrygg-space/kirby-trash
 ```
 
+On Kirby 5, pin the 0.7 line, otherwise Composer installs 1.x:
+
+```
+composer require sigtrygg-space/kirby-trash:^0.7
+```
+
+Existing Kirby 5 installs are safe: Composer's `^0.7` constraint never
+updates them to 1.x.
+
 ### Manual download
 
-Download and extract this repository to `site/plugins/kirby-trash`.
+Download and extract this repository to `site/plugins/kirby-trash` —
+the [latest release](https://github.com/sigtrygg-space/kirby-trash/releases/latest)
+for Kirby 6, a 0.7.x release for Kirby 5.
 
 ### Git submodule
 
 ```
 git submodule add https://github.com/sigtrygg-space/kirby-trash.git site/plugins/kirby-trash
 ```
+
+For Kirby 5, add `-b kirby-5` to track the maintenance branch.
 
 ## Panel
 
@@ -197,17 +215,18 @@ composer install --no-plugins
 composer test
 ```
 
-The Panel components live in `src/components/` as Vue single-file
-components and are precompiled with [kirbyup](https://github.com/johannschopplich/kirbyup) —
-the plugin must not rely on the Vue template compiler, which sites
-disable following Kirby's security recommendation (and which is
-deprecated in Kirby 6). After changing them, rebuild the committed
+The Panel components live in `src/components/` as Vue 3 single-file
+components and are precompiled with [kirbyup](https://github.com/johannschopplich/kirbyup) 4
+(Node.js 24 or newer). After changing them, rebuild the committed
 `index.js` / `index.css`:
 
 ```
 npm install
 npm run build
 ```
+
+The `kirby-5` branch keeps the Vue 2 components and kirbyup 3 for the
+Kirby 5 line.
 
 The test suite covers the core logic (trashing, restoring, cleanup,
 retention rules, permission-independent filesystem behaviour).
@@ -218,10 +237,11 @@ hand bypasses that invalidation — touch the trash root (or go through
 the plugin's API) to see the badge update.
 
 Releasing a new version: bump `version` in `composer.json` and date
-the CHANGELOG in one PR — merging it to `main` lets the release
-workflow create the matching tag and GitHub release automatically
-(with the notes taken from the CHANGELOG, marked as a pre-release
-while the version is 0.x).
+the CHANGELOG in one PR — merging it lets the release workflow create
+the matching tag and GitHub release automatically, with the notes taken
+from the CHANGELOG. `main` releases 1.x (marked as the latest release),
+`kirby-5` releases 0.x (pre-releases, never marked latest); a version
+bumped on the wrong branch stops the release.
 
 ## License
 

@@ -5,7 +5,8 @@ description: Review guidance for kirby-trash pull requests — project invariant
 
 # Reviewing kirby-trash
 
-kirby-trash is a trash can plugin for Kirby CMS 5+: pages and files are
+kirby-trash is a trash can plugin for Kirby CMS 6 (`main`, 1.x; the
+Kirby 5 line lives on `kirby-5`, 0.x): pages and files are
 soft-deleted via `page.delete:before` / `file.delete:before` hooks (a
 failing safety copy blocks the deletion) and managed in a Panel area.
 All core logic lives in `src/Trash.php`; `index.php` registers options,
@@ -29,6 +30,13 @@ hooks, the Panel area with backend-defined dialogs, and a CLI command.
   sources instead — `src/index.js` (the entrypoint registering
   components), `src/components/` and `src/styles.css`. CI fails when
   the committed build is stale.
+- **Missing menu badge on Kirby 6.0.0:** Kirby 6.0.0 drops the
+  `badge` of Panel menu entries (fixed upstream for 6.0.1). The
+  skipped `testKirbyRendersTheMenuBadge` and the `menuBadge()` test
+  helper account for it; do not flag the skip.
+- **Dialog texts without `Escape::html`:** Kirby 6 escapes plain
+  strings where it renders them; escaping them in PHP too would show
+  `&amp;` in the Panel. Plain strings in dialog `text` are correct.
 - **`composer.json` `version` field:** intentional despite Composer's
   warning — the Panel shows it for manual and submodule installs, and
   the release workflow keys off it. Never suggest removing it.
@@ -61,16 +69,22 @@ hooks, the Panel area with backend-defined dialogs, and a CLI command.
   `fetch()` — like the preview thumbnails via `<img src>` — must carry
   it as the `csrf` query parameter. A new endpoint without it, or a
   test that only exercises it impersonated, misses this.
-- **Values that end up in HTML or style attributes** must be strictly
+- **Values that end up in style attributes** must be strictly
   validated server-side (see `rowHeight()`: only plain positive
-  px/rem/em lengths pass) or escaped (`Escape::html` in dialog texts).
+  px/rem/em lengths pass). Text goes to the Panel as plain strings,
+  which Kirby 6 escapes; flag any `HtmlString` that wraps user or
+  meta data (titles, paths, user names).
+- **Vue 3 components:** every emitted event is declared in `emits`;
+  no `$listeners`, `$set` or `template:` strings.
+- **Release lines:** a `version` bump on `main` must be 1.x or later,
+  on `kirby-5` 0.x — the release workflow refuses anything else.
 
 ## Kirby facts this project verified the hard way
 
 - Custom dialog components must declare a `visible` prop and forward
   it to `k-dialog` — attribute fallthrough does not work.
-- Dropdown options use the `click` / `dialog` keys; the `option` key
-  only exists on unreleased Kirby main.
+- Dropdown options use the `click` / `dialog` keys; Kirby 6 also
+  reads `option`, Kirby 5 does not.
 - `F::type()` treats any 2–4 character input as a literal extension —
   pass `F::extension()` output, never a short filename.
 - Kirby's date field serializes an *edited* value as `Y-m-d 00:00:00`,

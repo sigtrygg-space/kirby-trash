@@ -1,6 +1,7 @@
 # CLAUDE.md
 
-kirby-trash is a trash can plugin for Kirby CMS 5+: pages and files are
+kirby-trash is a trash can plugin for Kirby CMS 6 (1.x on `main`; the
+0.7 line for Kirby 5 lives on `kirby-5`): pages and files are
 soft-deleted via `page.delete:before` / `file.delete:before` hooks (a
 failing safety copy blocks the deletion) and managed in a Panel area.
 Maintainer: Matthias Schmidt (@sigtrygg-space). Chat with the
@@ -27,31 +28,48 @@ English (international Kirby community).
   (`vendor/getkirby/cms/panel/dist/js/index.min.js`). Every UI bug in
   this project's history came from an unverified assumption.
 - **Never use Vue `template:` strings in panel code.** Sites disable
-  the Vue template compiler per Kirby's security recommendation
-  (deprecated in Kirby 6); runtime-only Vue renders such components
-  silently as nothing. Components are SFCs precompiled with kirbyup:
+  the Vue template compiler per Kirby's security recommendation;
+  runtime-only Vue renders such components silently as nothing.
+  Components are Vue 3 SFCs precompiled with kirbyup 4 (Node.js 24+):
   `npm install && npm run build` after changing `src/` panel files —
-  CI fails if the committed build is stale.
+  CI fails if the committed build is stale. The bundle imports Vue
+  from `"vue"` (Kirby 6's import map); there is no `window.Vue`.
+- **Vue 3 rules:** declare every emitted event in `emits` (undeclared
+  ones become native listeners on the root element); `$listeners`
+  and `$set` no longer exist.
 - Kirby core code style in PHP: tabs, aligned arrays, Kirby's
   `key:`/`data:`/`fallback:` exception convention.
 
-## Hard-won Kirby facts (all verified against 5.5)
+## Hard-won Kirby facts (verified against 6.0; 5.5 where noted)
 
 - Panel dialogs: define them in the area's `dialogs` key
   (pattern/load/submit). Submitting via the pipeline gives loading
   spinner, disabled buttons, success notification (`message`) and
   automatic view reload. Open by path: `dialog: "trash/…"` on buttons
   and dropdown options (k-button handles `dialog` natively).
-- Custom dialog components MUST declare a `visible` prop and forward
-  it to `k-dialog` — Vue 2 attr fallthrough does not, and the dialog
-  portal stays empty (blank overlay, no error).
-- Dropdown options use the `click` key (string) in released Kirby;
-  the `option` key is unreleased-main-only.
-- The area `menu` key may return an array that `Panel\Menu` spreads
-  into the menu button props (`badge` etc.); `array_filter` drops
-  null values. The badge is computed on EVERY panel request — it must
-  never throw and must stay cheap (dir listing; expiry stats cached,
-  keyed on trash root mtime + item count, flushed by `flushIndex()`).
+- Custom dialog components declare a `visible` prop and forward it
+  to `k-dialog`. Under Kirby 5 (Vue 2) attr fallthrough does not, and
+  the dialog portal stays empty (blank overlay, no error); keep the
+  pattern so both lines share the component.
+- Dropdown options use the `click` key (string). Kirby 6 reads
+  `option ?? click`, Kirby 5 only `click`.
+- Trusted HTML: Kirby 6 escapes plain strings where it renders them
+  (`text` of `k-text-dialog` / `k-remove-dialog` / `k-form-dialog`,
+  `k-box`, `k-text`, field `help`). Pass plain strings — escaping
+  them again (`Escape::html`) shows `&amp;` in the Panel. Only HTML
+  that is meant as HTML goes in as `Kirby\Toolkit\HtmlString`.
+- Panel backend: `$kirby->panel()` is an object (`->router()->call()`,
+  `->areas()`); `Areas::area($id, $definition)` returns an `Area`,
+  `Menu::item($id)` a `Ui\Button`. `menu`/`when` closures receive
+  objects.
+- The area `menu` key may return an array of menu button props
+  (`badge` etc.). **Kirby 6.0.0 drops the `badge`** in
+  `Menu::item()`; fixed upstream for 6.0.1 (the frontend renders it
+  fine). Tests detect this via `kirbyRendersMenuBadges()` and skip
+  `testKirbyRendersTheMenuBadge` — not a plugin bug. The badge is
+  computed on EVERY panel request — it must never throw and must stay
+  cheap (dir listing; expiry stats cached, keyed on trash root mtime
+  + item count, flushed by `flushIndex()`).
 - `k-table` resolves a column's `type` to a global
   `k-table-<type>-cell` component; plugin components qualify.
 - Kirby has NO `storage` root; `site/storage` is convention. Custom
@@ -62,9 +80,12 @@ English (international Kirby community).
   itself inside `$kirby->cache()`.
 - Hooks re-enter: nested deletions are guarded via normalized roots
   (`\` → `/`, Windows mixes separators within one request).
+- Content storage (`contentFile()`, `contentDirectory()` incl.
+  `_changes`) is identical in Kirby 5 and 6 — trash entries carry
+  over between the lines.
 - Deleted models: read UUIDs non-generatively; generate only for the
   surviving parent (`uuidOf($parent, generate: true)`).
-- Since Kirby 5.6.4 every Panel route except views (dialogs, drawers,
+- Since Kirby 5.6.4 (and in 6) every Panel route except views (dialogs, drawers,
   dropdowns, searches, request routes) requires the Panel's CSRF
   token, also for GETs. `Request::csrf()` reads the `X-CSRF` header or
   a `csrf` query parameter — resources loaded via `<img src>` (the
@@ -79,9 +100,13 @@ English (international Kirby community).
   touch the trash root).
 - Permission-based tests skip as superuser (`posix_geteuid() === 0`)
   and run on CI.
+- Deprecations only surface with `debug` on (or `KIRBY_TESTING`);
+  tests that guard against deprecated APIs collect `E_USER_DEPRECATED`
+  with `debug => true` (see the role blueprint test).
 - Impersonated tests never hit Kirby's session-only checks (the
   CSRF check above). Anything routed through the Panel needs a test
-  with a real `loginPasswordless()` session through `Panel::router()`
+  with a real `loginPasswordless()` session through
+  `$kirby->panel()->router()`
   (see the preview router test). The `app()` helper predefines the
   CSRF token so ordinary tests open no file sessions: Kirby mirrors
   the session cookie into `$_COOKIE`, and a second App instance in
@@ -90,10 +115,16 @@ English (international Kirby community).
 ## Release process (automated)
 
 Bump `version` in composer.json AND date the CHANGELOG section in one
-PR; merging to main lets `.github/workflows/release.yml` create the
-matching tag and GitHub release (notes = that CHANGELOG section,
-pre-release flag while 0.x). Packagist syncs via hook and SKIPS tags
-that don't match the version field. Never move a published tag.
+PR; merging lets `.github/workflows/release.yml` create the matching
+tag and GitHub release (notes = that CHANGELOG section). Two lines:
+`main` releases 1.x (Kirby 6, marked latest), `kirby-5` releases 0.x
+(Kirby 5, pre-release, never latest); a version on the wrong branch
+fails the release. `.github/scripts/test-release-workflow.sh` exercises
+the workflow in CI. Packagist syncs via hook and SKIPS tags that don't
+match the version field. Never move a published tag.
+
+Kirby 5 fixes go to `kirby-5` in their own PR (Vue 2, kirbyup 3,
+Node 22, PHP 8.2+); port them to `main` when they apply there too.
 
 ## Collaboration
 
