@@ -1,6 +1,12 @@
 # CLAUDE.md
 
-kirby-trash is a trash can plugin for Kirby CMS 5+: pages and files are
+> **This is the `kirby-5` maintenance branch** (0.7.x for Kirby 5:
+> Vue 2, kirbyup 3, Node 22, PHP 8.2+). Kirby 6 development happens on
+> `main` (1.x); its CLAUDE.md is the current one. Fixes here go in
+> their own PR against `kirby-5`; releases from this branch are 0.x
+> pre-releases that never become Latest.
+
+kirby-trash is a trash can plugin for Kirby CMS 5: pages and files are
 soft-deleted via `page.delete:before` / `file.delete:before` hooks (a
 failing safety copy blocks the deletion) and managed in a Panel area.
 Maintainer: Matthias Schmidt (@sigtrygg-space). Chat with the
