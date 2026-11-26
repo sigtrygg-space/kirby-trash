@@ -157,6 +157,26 @@ final class TrashTest extends TestCase
 		$this->assertSame($uuid, 'page://' . $restored->content()->get('uuid')->value());
 	}
 
+	public function testRestoredPageKeepsItsStatus(): void
+	{
+		$listed   = $this->createPage('listed')->changeStatus('listed');
+		$unlisted = $this->createPage('unlisted')->changeStatus('unlisted');
+		$this->createPage('draft');
+
+		foreach (['listed', 'unlisted', 'draft'] as $id) {
+			$this->fresh()->page($id)->delete();
+		}
+
+		foreach ($this->trash()->items() as $item) {
+			$this->trash()->restore($item['trashId']);
+		}
+
+		$kirby = $this->fresh();
+		$this->assertTrue($kirby->page('listed')->isListed());
+		$this->assertTrue($kirby->page('unlisted')->isUnlisted());
+		$this->assertTrue($kirby->page('draft')->isDraft());
+	}
+
 	public function testPageWithFilesAndChildrenCreatesSingleTrashItem(): void
 	{
 		$parent = $this->createPage('parent');
