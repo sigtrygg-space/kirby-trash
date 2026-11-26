@@ -25,25 +25,32 @@ and internal links keep working.
 
 ## Requirements
 
-- Kirby 5.x
-- PHP 8.2+
+This is the **Kirby 5 line** (0.7.x, `kirby-5` branch), maintained for
+now. For Kirby 6, use 1.x from `main`.
+
+| Plugin | Kirby | PHP | Branch |
+| --- | --- | --- | --- |
+| 1.x | 6 | 8.3+ | `main` |
+| 0.7.x | 5 | 8.2+ | `kirby-5` |
 
 ## Installation
 
 ### Composer
 
+On Kirby 5, pin the 0.7 line, otherwise Composer installs 1.x:
+
 ```
-composer require sigtrygg-space/kirby-trash
+composer require sigtrygg-space/kirby-trash:^0.7
 ```
 
 ### Manual download
 
-Download and extract this repository to `site/plugins/kirby-trash`.
+Download a 0.7.x release and extract it to `site/plugins/kirby-trash`.
 
 ### Git submodule
 
 ```
-git submodule add https://github.com/sigtrygg-space/kirby-trash.git site/plugins/kirby-trash
+git submodule add -b kirby-5 https://github.com/sigtrygg-space/kirby-trash.git site/plugins/kirby-trash
 ```
 
 ## Panel
@@ -98,8 +105,10 @@ return [
     'sigtrygg-space.kirby-trash.enabled' => true,
 
     // show the number of trashed items as a badge on the Panel
-    // menu entry. false disables the badge; an array restyles it,
-    // e.g. ['theme' => 'passive'] for a more subtle look
+    // menu entry (grey; orange while items expire soon, red when
+    // a cleanup is due). false disables the badge; an array
+    // restyles the regular state, e.g. ['theme' => 'notice'] for
+    // the orange badge of 0.7.1 and earlier
     'sigtrygg-space.kirby-trash.badge' => true,
 
     // thumbnail previews for trashed image files and page covers.
@@ -218,10 +227,13 @@ hand bypasses that invalidation — touch the trash root (or go through
 the plugin's API) to see the badge update.
 
 Releasing a new version: bump `version` in `composer.json` and date
-the CHANGELOG in one PR — merging it to `main` lets the release
-workflow create the matching tag and GitHub release automatically
-(with the notes taken from the CHANGELOG, marked as a pre-release
-while the version is 0.x).
+the CHANGELOG in one PR — merging it lets the release workflow create
+the matching tag and GitHub release automatically, with the notes taken
+from the CHANGELOG. `main` releases 1.x (marked as the latest release),
+`kirby-5` releases 0.x (pre-releases, never marked latest). Semver
+pre-releases such as `1.1.0-rc.1` are published as pre-releases and
+never marked latest either; a version bumped on the wrong branch stops
+the release.
 
 ## License
 

@@ -2,7 +2,7 @@
     "name": "sigtrygg-space/kirby-trash",
     "description": "A proper trash bin for Kirby CMS: soft-delete pages and files instead of removing them instantly.",
     "type": "kirby-plugin",
-    "version": "0.7.1",
+    "version": "0.7.2",
     "license": "MIT",
     "keywords": [
         "kirby",
@@ -41,7 +41,10 @@
     },
     "extra": {
         "kirby-cms-path": false,
-        "installer-name": "kirby-trash"
+        "installer-name": "kirby-trash",
+        "kirby": {
+            "compatible": "^5.0"
+        }
     },
     "config": {
         "allow-plugins": {

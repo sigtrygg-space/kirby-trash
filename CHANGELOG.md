@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.2 (2026-11-26)
+
+Maintenance release of the Kirby 5 line; Kirby 6 is supported by 1.x.
+
+- The menu badge is grey (`passive`) by default and turns orange only
+  while items expire soon. It used to be orange all the time —
+  Kirby renders the previous default `notice` in exactly the warn
+  theme's orange, so the warning never showed on the badge. Red
+  ("cleanup required") is unchanged. For the previous look, set
+  `'sigtrygg-space.kirby-trash.badge' => ['theme' => 'notice']`
+- composer.json declares Kirby 5 compatibility
+  (`extra.kirby.compatible`)
+
 ## 0.7.1 (2026-11-19)
 
 - Preview thumbnails work again on Kirby 5.6.4+: the security release
