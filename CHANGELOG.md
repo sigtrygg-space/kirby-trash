@@ -3,7 +3,8 @@
 ## 1.0.0 (2026-11-26)
 
 First stable release, for Kirby 6. Kirby 5 stays supported on the 0.7
-line (`kirby-5` branch) for now.
+line (`kirby-5` branch) for now. Thanks to @jenswittmann for #73,
+which independently confirmed the Panel rebuild on Kirby 6.0.0.
 
 - Requires Kirby 6 and PHP 8.3+. On Kirby 5, pin the 0.7 line:
   `composer require sigtrygg-space/kirby-trash:^0.7` — existing
