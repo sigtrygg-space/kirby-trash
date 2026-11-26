@@ -892,9 +892,11 @@ class Trash
 	 * Badge for the Panel menu button showing the number of live
 	 * (not yet expired) items, or null when the badge is disabled
 	 * or the trash is empty. The option accepts `true`, `false` or
-	 * an array with a `theme` key — any Panel theme, e.g. `passive`
-	 * for a more subtle look. When an item expires within the warn
-	 * threshold, the badge switches to the warn theme.
+	 * an array with a `theme` key — any Panel theme, e.g. `notice`
+	 * for an orange badge. The default is `passive` (grey), so the
+	 * warn theme (default `orange`, the same color as `notice`)
+	 * stands out: when an item expires within the warn threshold,
+	 * the badge switches to it.
 	 *
 	 * When ONLY expired items remain, the badge does not disappear
 	 * (that would hide occupied disk space entirely) — it turns into
@@ -932,7 +934,7 @@ class Trash
 			return [
 				'theme' => $this->expiresSoon() === true
 					? $this->warnTheme()
-					: ((is_array($option) === true ? $option['theme'] ?? null : null) ?? 'notice'),
+					: ((is_array($option) === true ? $option['theme'] ?? null : null) ?? 'passive'),
 				'text'  => $live,
 			];
 		} catch (Throwable) {
