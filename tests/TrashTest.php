@@ -13,8 +13,8 @@ use Kirby\Exception\NotFoundException;
 use Kirby\Filesystem\Dir;
 use Kirby\Filesystem\F;
 use Kirby\Http\Response;
+use Kirby\Panel\Areas;
 use Kirby\Panel\Menu;
-use Kirby\Panel\Panel;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
@@ -703,7 +703,7 @@ final class TrashTest extends TestCase
 		// nothing but expired items: the red call to action
 		$this->assertSame(
 			['theme' => 'negative', 'text' => 1],
-			$this->menuEntry($area)['badge']
+			$this->menuBadge($area)
 		);
 
 		// Kirby builds the areas before it calls the route action but
@@ -713,7 +713,7 @@ final class TrashTest extends TestCase
 		$area['views'][0]['action']();
 
 		$this->assertCount(0, $this->trash()->items());
-		$this->assertArrayNotHasKey('badge', $this->menuEntry($area));
+		$this->assertNull($this->menuBadge($area));
 	}
 
 	public function testEntriesWithoutMetaStayRemovableFromThePanel(): void
@@ -829,12 +829,89 @@ final class TrashTest extends TestCase
 		$area = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
 		$this->assertSame(
 			['theme' => 'notice', 'text' => 1],
-			$this->menuEntry($area)['badge']
+			$this->menuBadge($area)
 		);
 
 		$trash->emptyTrash();
 		$this->assertSame(0, $trash->count());
 		$this->assertNull($trash->badge());
+	}
+
+	public function testDialogTextsLeaveEscapingToThePanel(): void
+	{
+		// Kirby 6 escapes plain strings in dialog texts where they are
+		// rendered; escaping the title here as well would show the
+		// entities to the user (`Tom &amp; Jerry`)
+		$this->createPage('note', ['title' => 'Tom & "Jerry" <b>']);
+		$this->fresh()->page('note')->delete();
+
+		$trashId = $this->trash()->items()[0]['trashId'];
+		$dialogs = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby)['dialogs'];
+
+		foreach (['trash.restore', 'trash.delete'] as $dialog) {
+			$text = $dialogs[$dialog]['load']($trashId)['props']['text'];
+			$this->assertIsString($text, $dialog . ' text must stay a plain (Panel-escaped) string');
+			$this->assertStringContainsString('"Tom & "Jerry" <b>"', $text, $dialog);
+		}
+	}
+
+	public function testRoleBlueprintsGrantNonAdminsAccess(): void
+	{
+		F::write($this->tmp . '/site/blueprints/users/editor.yml', implode("\n", [
+			'title: Editor',
+			'permissions:',
+			'  sigtrygg-space.kirby-trash:',
+			'    access: true',
+			'    restore: true',
+			'    delete: false',
+		]));
+		F::write($this->tmp . '/site/blueprints/users/client.yml', 'title: Client');
+
+		// debug mode makes Kirby report deprecations — e.g. one for a
+		// permission category the plugin failed to register
+		$deprecations = [];
+		set_error_handler(function (int $level, string $message) use (&$deprecations) {
+			$deprecations[] = $message;
+			return true;
+		}, E_USER_DEPRECATED);
+
+		try {
+			$this->kirby = $this->app(['debug' => true], ['users' => [
+				['email' => 'editor@example.com', 'role' => 'editor'],
+				['email' => 'client@example.com', 'role' => 'client'],
+			]]);
+
+			$this->kirby->impersonate('editor@example.com');
+			$this->assertTrue($this->trash()->can('access'));
+			$this->assertTrue($this->trash()->can('restore'));
+			$this->assertFalse($this->trash()->can('delete'));
+
+			// roles without an entry get the plugin's defaults: no access
+			$this->kirby->impersonate('client@example.com');
+			$this->assertFalse($this->trash()->can('access'));
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertSame([], $deprecations);
+	}
+
+	public function testKirbyRendersTheMenuBadge(): void
+	{
+		// Kirby 6.0.0 builds menu buttons from a fixed argument list
+		// without `badge`; the fix is in Kirby's develop-patch branch
+		if ($this->kirbyRendersMenuBadges() === false) {
+			$this->markTestSkipped('Kirby ' . App::version() . ' drops menu item badges (restored upstream for 6.0.1)');
+		}
+
+		$this->createPage('note');
+		$this->fresh()->page('note')->delete();
+
+		$area = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
+		$this->assertSame(
+			['theme' => 'notice', 'text' => 1],
+			$this->menuEntry($area)['badge']
+		);
 	}
 
 	public function testMenuBadgeCanBeDisabledAndThemed(): void
@@ -1384,7 +1461,7 @@ final class TrashTest extends TestCase
 
 			// … passes the Panel router, CSRF check included
 			$this->kirby = $login($query);
-			$response    = Panel::router($path);
+			$response    = $this->kirby->panel()->router()->call($path);
 			$this->assertSame(200, $response->code());
 			$this->assertSame('image/jpeg', $response->type());
 
@@ -1392,7 +1469,7 @@ final class TrashTest extends TestCase
 			// that enforce the check — the reason the token is in the URL
 			if (version_compare(App::version(), '5.6.4', '>=') === true) {
 				$this->kirby = $login();
-				$this->assertSame(400, Panel::router($path)->code());
+				$this->assertSame(400, $this->kirby->panel()->router()->call($path)->code());
 			}
 		} finally {
 			// destroyed now rather than by a destructor after tearDown()
@@ -1700,22 +1777,50 @@ final class TrashTest extends TestCase
 	}
 
 	/**
-	 * The trash menu entry, resolved the way Kirby resolves it on
-	 * every Panel request: through Panel\Menu, which runs after the
-	 * route action. Panel\Menu::entry() drops empty values, so a
-	 * missing badge means no `badge` key at all.
+	 * The trash menu entry's props, resolved the way Kirby resolves
+	 * them on every Panel request: through Panel\Menu, which calls the
+	 * area's menu closure after the route action. Empty values are
+	 * dropped, so a missing badge means no `badge` key at all.
 	 */
 	protected function menuEntry(array $area): array
 	{
-		$menu = new Menu(['trash' => Panel::area('trash', $area)]);
+		$areas = new Areas(['trash' => Areas::area('trash', $area)]);
+		$item  = (new Menu(areas: $areas, config: ['trash']))->item('trash');
 
-		foreach ($menu->entries() as $entry) {
-			if (is_array($entry) === true && ($entry['link'] ?? null) === 'trash') {
-				return $entry;
-			}
+		if ($item === null) {
+			$this->fail('the trash menu entry is missing');
 		}
 
-		$this->fail('the trash menu entry is missing');
+		return array_filter($item->props());
+	}
+
+	/**
+	 * The badge of the trash menu entry. Kirby 6.0.0's Panel\Menu
+	 * drops the badge of menu items (restored upstream for 6.0.1), so
+	 * where Kirby renders badges it is read from the real menu entry,
+	 * otherwise straight from the area's menu closure — which Kirby
+	 * calls at the same point, after the route action.
+	 */
+	protected function menuBadge(array $area): array|null
+	{
+		if ($this->kirbyRendersMenuBadges() === true) {
+			return $this->menuEntry($area)['badge'] ?? null;
+		}
+
+		$menu = $area['menu'] instanceof Closure ? $area['menu']() : $area['menu'];
+
+		return is_array($menu) === true ? ($menu['badge'] ?? null) : null;
+	}
+
+	protected function kirbyRendersMenuBadges(): bool
+	{
+		$probe = Areas::area('probe', [
+			'label' => 'Probe',
+			'menu'  => fn () => ['badge' => ['text' => 1]],
+		]);
+		$menu = new Menu(areas: new Areas(['probe' => $probe]), config: ['probe']);
+
+		return ($menu->item('probe')?->props()['badge'] ?? null) !== null;
 	}
 
 	protected function requireGd(): void

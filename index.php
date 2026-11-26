@@ -6,7 +6,6 @@ use Kirby\Cms\Page;
 use Kirby\Data\Data;
 use Kirby\Exception\NotFoundException;
 use Kirby\Filesystem\F;
-use Kirby\Toolkit\Escape;
 use Kirby\Toolkit\I18n;
 use SigtryggSpace\KirbyTrash\Trash;
 
@@ -317,8 +316,11 @@ App::plugin('sigtrygg-space/kirby-trash', [
 							return [
 								'component' => 'k-text-dialog',
 								'props' => [
+									// a plain string on purpose: Kirby 6 escapes
+									// dialog texts where they are rendered, so
+									// the title must not be escaped here too
 									'text' => I18n::template('sigtrygg-space.kirby-trash.dialog.restore', null, [
-										'title' => Escape::html($trash->panelItem($id)['title']),
+										'title' => $trash->panelItem($id)['title'],
 									]),
 									'submitButton' => [
 										'icon' => 'undo',
@@ -346,8 +348,11 @@ App::plugin('sigtrygg-space/kirby-trash', [
 							return [
 								'component' => 'k-remove-dialog',
 								'props' => [
+									// a plain string on purpose: Kirby 6 escapes
+									// dialog texts where they are rendered, so
+									// the title must not be escaped here too
 									'text' => I18n::template('sigtrygg-space.kirby-trash.dialog.delete', null, [
-										'title' => Escape::html($trash->panelItem($id)['title']),
+										'title' => $trash->panelItem($id)['title'],
 									]),
 								],
 							];

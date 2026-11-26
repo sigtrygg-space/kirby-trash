@@ -74,18 +74,21 @@ export default {
     ratio: String,
     canRestore: Boolean,
     canDelete: Boolean,
-    // label of the postpone action incl. the cycle length,
+    // label of the postpone action ("Keep longer"),
     // or null when the item cannot be postponed
     postponeLabel: String,
-    // passed by the panel's dialog island; must be forwarded to
-    // k-dialog explicitly — Vue 2 attribute fallthrough only sets
-    // it as a DOM attribute, not as the k-dialog prop, and without
-    // it k-dialog never teleports into the dialog portal
+    // passed by the Panel's dialog portal; must be forwarded to
+    // k-dialog explicitly — k-dialog only teleports into the portal
+    // while its own `visible` prop is set
     visible: {
       type: Boolean,
       default: false
     }
   },
+  // Vue 3 treats undeclared events as native listeners on the root
+  // element; declaring `cancel` keeps the Panel's close listener on
+  // the component event
+  emits: ["cancel"],
   computed: {
     submitButton() {
       return { text: this.$t("close") };

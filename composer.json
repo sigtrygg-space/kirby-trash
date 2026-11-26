@@ -24,11 +24,11 @@
         "source": "https://github.com/sigtrygg-space/kirby-trash"
     },
     "require": {
-        "php": ">=8.2",
+        "php": "~8.3.0 || ~8.4.0 || ~8.5.0 || ~8.6.0",
         "getkirby/composer-installer": "^1.2"
     },
     "require-dev": {
-        "getkirby/cms": "^5.0",
+        "getkirby/cms": "^6.0",
         "phpunit/phpunit": "^10.5"
     },
     "autoload": {
@@ -41,7 +41,10 @@
     },
     "extra": {
         "kirby-cms-path": false,
-        "installer-name": "kirby-trash"
+        "installer-name": "kirby-trash",
+        "kirby": {
+            "compatible": "^6.0"
+        }
     },
     "config": {
         "allow-plugins": {
