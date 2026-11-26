@@ -116,8 +116,10 @@ return [
     'sigtrygg-space.kirby-trash.enabled' => true,
 
     // show the number of trashed items as a badge on the Panel
-    // menu entry. false disables the badge; an array restyles it,
-    // e.g. ['theme' => 'passive'] for a more subtle look
+    // menu entry (grey; orange while items expire soon, red when
+    // a cleanup is due). false disables the badge; an array
+    // restyles the regular state, e.g. ['theme' => 'notice'] for
+    // the orange badge of 1.0.0 and earlier
     'sigtrygg-space.kirby-trash.badge' => true,
 
     // thumbnail previews for trashed image files and page covers.
