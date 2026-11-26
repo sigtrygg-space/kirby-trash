@@ -44,9 +44,11 @@ runs   = [(i, s) for i, s in enumerate(steps) if "run" in s]
 byname = {s["name"]: s for _, s in runs if s.get("name")}
 
 wanted = {
-	"Read the version from composer.json":          "version.sh",
-	"Check whether the version is already tagged":  "tag.sh",
-	"Extract the release notes from the CHANGELOG": "notes.sh",
+	"Read the version from composer.json":            "version.sh",
+	"Check whether the version is already tagged":    "tag.sh",
+	"Check that the version belongs to this branch":  "line.sh",
+	"Extract the release notes from the CHANGELOG":   "notes.sh",
+	"Create the tag and the release":                 "create.sh",
 }
 
 if missing := [name for name in wanted if name not in byname]:
@@ -125,15 +127,36 @@ rejects() {
 }
 
 # Runs the extracted release-notes step over $2 (a CHANGELOG) for
-# version $1 and echoes the resulting release-notes.md.
+# version $1 on branch $3 (default main) and echoes the resulting
+# release-notes.md.
 run_notes() {
 	local sandbox="$WORK/notes"
 	rm -rf "$sandbox"
 	mkdir -p "$sandbox"
 	cp "$2" "$sandbox/CHANGELOG.md"
 
-	(cd "$sandbox" && VERSION="$1" REPOSITORY="owner/repo" bash -e "$WORK/notes.sh") > /dev/null 2>&1
+	(cd "$sandbox" && VERSION="$1" REPOSITORY="owner/repo" BRANCH="${3-main}" bash -e "$WORK/notes.sh") > /dev/null 2>&1
 	cat "$sandbox/release-notes.md"
+}
+
+# Runs the extracted branch guard for branch $1 and version $2.
+line_allows() {
+	(BRANCH="$1" VERSION="$2" bash -e "$WORK/line.sh") > /dev/null 2>&1
+}
+
+# Runs the extracted create step for branch $1 and version $2 against a
+# stub `gh` that only records its arguments, and echoes them.
+run_create() {
+	local sandbox="$WORK/create"
+	rm -rf "$sandbox"
+	mkdir -p "$sandbox/bin"
+	printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$@" > "%s/args"\n' "$sandbox" > "$sandbox/bin/gh"
+	chmod +x "$sandbox/bin/gh"
+	: > "$sandbox/release-notes.md"
+
+	(cd "$sandbox" && PATH="$sandbox/bin:$PATH" GH_TOKEN=x GITHUB_SHA=abc \
+		BRANCH="$1" VERSION="$2" bash -e "$WORK/create.sh") > /dev/null 2>&1
+	tr '\n' ' ' < "$sandbox/args"
 }
 
 # ------------------------------------------------------------ structure
@@ -193,6 +216,53 @@ else
 	ok "the tag step consumes a hostile VERSION as data"
 fi
 
+# ------------------------------------------------------ release lines
+# main publishes 1.x (Kirby 6), kirby-5 publishes 0.x (Kirby 5); a bump
+# on the wrong branch must stop the release instead of mixing the lines
+echo "release lines"
+
+for case in "main 1.0.0" "main 1.2.3-rc1" "main 2.0.0" "kirby-5 0.7.2" "kirby-5 0.8.0-beta.1"; do
+	set -- $case
+	if line_allows "$1" "$2"; then ok "$1 may release $2"; else no "$1 refused to release $2"; fi
+done
+for case in "main 0.7.2" "kirby-5 1.0.0" "kirby-5 2.1.0" "feature 1.0.0"; do
+	set -- $case
+	if line_allows "$1" "$2"; then no "$1 released $2"; else ok "$1 refuses to release $2"; fi
+done
+
+args="$(run_create main 1.0.0)"
+if [[ "$args" == *"--latest "* || "$args" == *"--latest" ]] && [[ "$args" != *"--prerelease"* ]]; then
+	ok "a main release is marked Latest and is no pre-release"
+else
+	no "unexpected gh arguments for main 1.0.0: $args"
+fi
+
+args="$(run_create kirby-5 0.7.2)"
+if [[ "$args" == *"--latest=false"* ]] && [[ "$args" == *"--prerelease"* ]]; then
+	ok "a kirby-5 release never becomes Latest and stays a pre-release"
+else
+	no "unexpected gh arguments for kirby-5 0.7.2: $args"
+fi
+
+# a release candidate must neither look stable nor take the Latest
+# badge (the README links the latest release for downloads)
+for version in 1.1.0-rc.1 1.2.3-alpha.1+build.5; do
+	args="$(run_create main "$version")"
+	if [[ "$args" == *"--latest=false"* ]] && [[ "$args" == *"--prerelease"* ]]; then
+		ok "main $version is a pre-release and never Latest"
+	else
+		no "unexpected gh arguments for main $version: $args"
+	fi
+done
+
+# build metadata may contain hyphens without making a pre-release
+args="$(run_create main 1.2.3+build-5)"
+if [[ "$args" == *"--latest "* || "$args" == *"--latest" ]] && [[ "$args" != *"--prerelease"* ]]; then
+	ok "main 1.2.3+build-5 is a stable Latest release"
+else
+	no "unexpected gh arguments for main 1.2.3+build-5: $args"
+fi
+
 # --------------------------------------------------- release notes
 echo "release notes"
 
@@ -243,6 +313,13 @@ if [[ "$notes" == *"blob/main/CHANGELOG.md"* ]]; then
 	ok "falls back to the CHANGELOG link for an unknown version"
 else
 	no "an unknown version did not fall back to the CHANGELOG link"
+fi
+
+notes="$(run_notes "9.9.9" "$WORK/CHANGELOG.md" kirby-5)"
+if [[ "$notes" == *"blob/kirby-5/CHANGELOG.md"* ]]; then
+	ok "the fallback link points at the releasing branch's CHANGELOG"
+else
+	no "the kirby-5 fallback did not link the kirby-5 CHANGELOG: $notes"
 fi
 
 # ----------------------------------------------------- the real files

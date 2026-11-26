@@ -1,14 +1,17 @@
 name: Release
 
 # Tags and publishes a GitHub release whenever the `version` in
-# composer.json changes on main. Releasing therefore means: bump the
-# version and date the CHANGELOG in a PR — merging it releases.
+# composer.json changes on a release branch. Releasing therefore means:
+# bump the version and date the CHANGELOG in a PR — merging it releases.
 # The tag is derived from the version field, so the two can never
 # drift apart (Packagist skips tags that don't match the field).
+#
+# Two release lines: `main` publishes 1.x (Kirby 6), the maintenance
+# branch `kirby-5` publishes 0.x (Kirby 5).
 
 on:
   push:
-    branches: [main]
+    branches: [main, kirby-5]
     paths: [composer.json]
 
 permissions:
@@ -54,11 +57,35 @@ jobs:
             echo "new=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # each release line only ever publishes its own major version: a
+      # version bumped on the wrong branch would publish a Kirby 5 build
+      # as Kirby 6 (or vice versa) and break Packagist's resolution. Only
+      # checked for new releases, so other composer.json edits pass.
+      - name: Check that the version belongs to this branch
+        if: steps.tag.outputs.new == 'true'
+        env:
+          VERSION: ${{ steps.composer.outputs.version }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          case "$BRANCH:$VERSION" in
+            main:0.*)    reason="0.x (Kirby 5) is released from the kirby-5 branch" ;;
+            main:*)      reason="" ;;
+            kirby-5:0.*) reason="" ;;
+            kirby-5:*)   reason="the kirby-5 branch only releases 0.x" ;;
+            *)           reason="$BRANCH is not a release branch" ;;
+          esac
+
+          if [ -n "$reason" ]; then
+            echo "::error::version $VERSION cannot be released from $BRANCH: $reason"
+            exit 1
+          fi
+
       - name: Extract the release notes from the CHANGELOG
         if: steps.tag.outputs.new == 'true'
         env:
           VERSION: ${{ steps.composer.outputs.version }}
           REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
         run: |
           # match the heading literally: `~` would treat the version as a
           # regex, where `.` matches any character and a `+` from build
@@ -73,7 +100,7 @@ jobs:
           ' CHANGELOG.md > release-notes.md
 
           if [ ! -s release-notes.md ]; then
-            echo "See the [CHANGELOG](https://github.com/$REPOSITORY/blob/main/CHANGELOG.md)." > release-notes.md
+            echo "See the [CHANGELOG](https://github.com/$REPOSITORY/blob/$BRANCH/CHANGELOG.md)." > release-notes.md
           fi
 
       - name: Create the tag and the release
@@ -81,15 +108,29 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.composer.outputs.version }}
+          BRANCH: ${{ github.ref_name }}
         run: |
-          # 0.x versions are published as pre-releases
-          case "$VERSION" in
-            0.*) prerelease="--prerelease" ;;
-            *)   prerelease="" ;;
+          # 0.x versions and semver pre-releases (1.1.0-rc.1) are
+          # published as pre-releases. Build metadata may contain
+          # hyphens too, so only the part before `+` decides
+          core="${VERSION%%+*}"
+          case "$core" in
+            0.* | *-*) prerelease="--prerelease" ;;
+            *)         prerelease="" ;;
           esac
+
+          # only stable releases of main's line are "Latest": neither a
+          # Kirby 5 patch released after 1.0 nor a release candidate
+          # may take the badge (and the README's download link) from
+          # the current stable version
+          if [ "$BRANCH" = main ] && [ -z "$prerelease" ]; then
+            latest="--latest"
+          else
+            latest="--latest=false"
+          fi
 
           gh release create "v$VERSION" \
             --target "$GITHUB_SHA" \
             --title "v$VERSION" \
             --notes-file release-notes.md \
-            $prerelease
+            $prerelease $latest
