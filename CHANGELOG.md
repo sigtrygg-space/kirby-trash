@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 (unreleased)
+## 1.0.0 (2026-11-26)
 
 First stable release, for Kirby 6. Kirby 5 stays supported on the 0.7
 line (`kirby-5` branch) for now.
