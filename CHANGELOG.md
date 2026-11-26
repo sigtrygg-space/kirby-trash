@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.0 (2026-11-26)
+
+First stable release, for Kirby 6. Kirby 5 stays supported on the 0.7
+line (`kirby-5` branch) for now. Thanks to @jenswittmann for #73,
+which independently confirmed the Panel rebuild on Kirby 6.0.0.
+
+- Requires Kirby 6 and PHP 8.3+. On Kirby 5, pin the 0.7 line:
+  `composer require sigtrygg-space/kirby-trash:^0.7` — existing
+  installs with a `^0.7` constraint never update to 1.x
+- The Panel components run on Kirby 6's Vue 3 Panel (rebuilt with
+  kirbyup 4)
+- Dialog texts leave escaping to the Panel: Kirby 6 escapes plain
+  strings where it renders them, so titles with `&`, quotes or angle
+  brackets no longer show up as `&amp;` and friends
+- The menu badge needs Kirby 6.0.1+: Kirby 6.0.0 drops badges of
+  Panel menu entries. Nothing else changes in behavior, options,
+  permissions or the trash storage format — the trash carries over
+  unchanged from 0.7
+
 ## 0.7.1 (2026-11-19)
 
 - Preview thumbnails work again on Kirby 5.6.4+: the security release

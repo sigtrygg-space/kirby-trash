@@ -10,7 +10,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ["8.2", "8.3", "8.4"]
+        # Kirby 6 supports PHP 8.3 to 8.6 (see composer.json)
+        php: ["8.3", "8.4", "8.5"]
     steps:
       - uses: actions/checkout@v5
 
@@ -31,9 +32,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # kirbyup 4 (Kirby 6, Vue 3) requires Node.js 24 or newer
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - run: npm ci

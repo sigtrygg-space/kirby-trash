@@ -3,3 +3,5 @@
 /.phpunit.cache
 composer.lock
 phpunit.xml
+# kirbyup dev server entry (Kirby 6) — never ship it
+index.dev.js
