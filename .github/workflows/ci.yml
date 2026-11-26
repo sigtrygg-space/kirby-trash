@@ -49,6 +49,10 @@ jobs:
             exit 1
           fi
 
+      # renders the committed bundle with Vue 3 — PHPUnit never sees
+      # the Vue side (tests/*.test.mjs)
+      - run: npm test
+
   # release.yml only fires on a push to main that touches composer.json,
   # so nothing else in CI ever runs its scripts — without this job the
   # first execution of a change to them would be an actual release,

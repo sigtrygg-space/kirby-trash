@@ -3,7 +3,8 @@
     "private": true,
     "scripts": {
         "dev": "kirbyup serve src/index.js",
-        "build": "kirbyup src/index.js"
+        "build": "kirbyup src/index.js",
+        "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"tests/**/*.test.mjs\""
     },
     "devDependencies": {
         "kirbyup": "^4.0.0"

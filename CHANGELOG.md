@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.1 (2026-11-26)
+
+- The "Time left" column marks only items that expire soon again. On
+  Kirby 6 every row showed a grey pill: Vue 3 renders a `false`
+  attribute value as the string "false" instead of dropping the
+  attribute like Vue 2 did. The cell also keeps the props Kirby's
+  table passes to every cell off the DOM
+- The menu badge is grey (`passive`) by default and turns orange only
+  while items expire soon. It used to be orange all the time —
+  Kirby renders the previous default `notice` in exactly the warn
+  theme's orange, so the warning never showed on the badge. Red
+  ("cleanup required") is unchanged. For the previous look, set
+  `'sigtrygg-space.kirby-trash.badge' => ['theme' => 'notice']`
+
 ## 1.0.0 (2026-11-26)
 
 First stable release, for Kirby 6. Kirby 5 stays supported on the 0.7

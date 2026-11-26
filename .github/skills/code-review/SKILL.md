@@ -37,6 +37,10 @@ hooks, the Panel area with backend-defined dialogs, and a CLI command.
 - **Dialog texts without `Escape::html`:** Kirby 6 escapes plain
   strings where it renders them; escaping them in PHP too would show
   `&amp;` in the Panel. Plain strings in dialog `text` are correct.
+- **Badge theme `passive` by default:** deliberate since 1.0.1 —
+  Kirby renders `notice` in exactly the warn default's orange, so
+  the warn state was invisible. Grey → orange → red is the intended
+  escalation.
 - **`composer.json` `version` field:** intentional despite Composer's
   warning — the Panel shows it for manual and submodule installs, and
   the release workflow keys off it. Never suggest removing it.
@@ -75,7 +79,10 @@ hooks, the Panel area with backend-defined dialogs, and a CLI command.
   which Kirby 6 escapes; flag any `HtmlString` that wraps user or
   meta data (titles, paths, user names).
 - **Vue 3 components:** every emitted event is declared in `emits`;
-  no `$listeners`, `$set` or `template:` strings.
+  no `$listeners`, `$set` or `template:` strings. Attribute bindings
+  fall back to `null`, never `false` (Vue 3 renders "false", and
+  `[data-*]` selectors then match); no HTML comment at a template's
+  root (it ships and makes the component a fragment).
 - **Release lines:** a `version` bump on `main` must be 1.x or later,
   on `kirby-5` 0.x — the release workflow refuses anything else.
 

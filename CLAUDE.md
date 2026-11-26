@@ -17,6 +17,8 @@ English (international Kirby community).
 - `src/index.js`, `src/components/*.vue`, `src/styles.css` — Panel
   sources, built with kirbyup into the committed `index.js`/`index.css`
 - `tests/TrashTest.php` — PHPUnit suite (`composer test`)
+- `tests/panel.test.mjs` — renders the committed `index.js` with Vue 3
+  and fails on Vue warnings (`npm test`, after `npm run build`)
 - `translations/en.json`, `de.json` — UI keys under
   `sigtrygg-space.kirby-trash.*`, error keys under
   `error.sigtrygg-space.kirby-trash.*`
@@ -36,7 +38,12 @@ English (international Kirby community).
   from `"vue"` (Kirby 6's import map); there is no `window.Vue`.
 - **Vue 3 rules:** declare every emitted event in `emits` (undeclared
   ones become native listeners on the root element); `$listeners`
-  and `$set` no longer exist.
+  and `$set` no longer exist. Attribute bindings fall back to `null`,
+  never `false` — Vue 3 renders `false` as the string "false", so
+  `[data-*]` selectors match (1.0.1's grey pills). No HTML comments
+  at a template's root: they ship in the build and turn the component
+  into a fragment. Table cells set `inheritAttrs: false` (k-table
+  passes every cell `disabled` and an `input` listener).
 - Kirby core code style in PHP: tabs, aligned arrays, Kirby's
   `key:`/`data:`/`fallback:` exception convention.
 
@@ -100,6 +107,16 @@ English (international Kirby community).
   touch the trash root).
 - Permission-based tests skip as superuser (`posix_geteuid() === 0`)
   and run on CI.
+- Kirby 6 serves Vue's production build even with `debug => true`,
+  which swallows Vue warnings; the dev build only comes when a plugin
+  has a non-empty `index.dev.js` (`Panel\Plugins::isDev()`). "No Vue
+  warnings in the console" proves nothing without it — `npm test`
+  renders with Vue's dev build and fails on any warning.
+- `getkirby/starterkit` still pulls Kirby 5 unless Kirby 6 is
+  requested explicitly (`getkirby/cms:^6.0`) — check the version of
+  any demo used for verification.
+- Menu badges are invisible on Kirby 6.0.0 (see above): verify them
+  on `develop-patch` or 6.0.1+.
 - Deprecations only surface with `debug` on (or `KIRBY_TESTING`);
   tests that guard against deprecated APIs collect `E_USER_DEPRECATED`
   with `debug => true` (see the role blueprint test).

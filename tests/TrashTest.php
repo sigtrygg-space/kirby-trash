@@ -674,7 +674,7 @@ final class TrashTest extends TestCase
 		$this->backdateItem('stale', 40);
 
 		// as long as live items remain, only those are counted
-		$this->assertSame(['theme' => 'notice', 'text' => 1], $this->trash()->badge());
+		$this->assertSame(['theme' => 'passive', 'text' => 1], $this->trash()->badge());
 
 		// only expired items left: instead of disappearing (and
 		// hiding the occupied disk space), the badge becomes a red
@@ -843,12 +843,12 @@ final class TrashTest extends TestCase
 
 		$trash = $this->trash();
 		$this->assertSame(1, $trash->count());
-		$this->assertSame(['theme' => 'notice', 'text' => 1], $trash->badge());
+		$this->assertSame(['theme' => 'passive', 'text' => 1], $trash->badge());
 
 		// the area menu carries the badge into the button props
 		$area = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
 		$this->assertSame(
-			['theme' => 'notice', 'text' => 1],
+			['theme' => 'passive', 'text' => 1],
 			$this->menuBadge($area)
 		);
 
@@ -929,7 +929,7 @@ final class TrashTest extends TestCase
 
 		$area = (App::plugin('sigtrygg-space/kirby-trash')->extends()['areas']['trash'])($this->kirby);
 		$this->assertSame(
-			['theme' => 'notice', 'text' => 1],
+			['theme' => 'passive', 'text' => 1],
 			$this->menuEntry($area)['badge']
 		);
 	}
@@ -947,10 +947,10 @@ final class TrashTest extends TestCase
 		$this->assertNull($this->trash()->badge());
 
 		$this->kirby = $this->app([
-			'sigtrygg-space.kirby-trash.badge' => ['theme' => 'passive'],
+			'sigtrygg-space.kirby-trash.badge' => ['theme' => 'notice'],
 		]);
 
-		$this->assertSame(['theme' => 'passive', 'text' => 1], $this->trash()->badge());
+		$this->assertSame(['theme' => 'notice', 'text' => 1], $this->trash()->badge());
 	}
 
 	public function testWarnStateHighlightsExpiringItems(): void
@@ -961,7 +961,11 @@ final class TrashTest extends TestCase
 		// fresh item: 30 days left, no warn state
 		$this->assertFalse($this->trash()->expiresSoon());
 		$this->assertFalse($this->trash()->panelItems()[0]['expiresSoon']);
-		$this->assertSame('notice', $this->trash()->badge()['theme']);
+		$this->assertSame('passive', $this->trash()->badge()['theme']);
+
+		// the warn state has to be visible on the badge: Kirby
+		// renders `notice` in exactly the warn default's orange
+		$this->assertNotSame($this->trash()->badge()['theme'], $this->trash()->warnTheme());
 
 		// 2 days left (retention 30, deleted 28 days ago): warn state
 		$this->backdateItem('note', 28);
@@ -992,7 +996,7 @@ final class TrashTest extends TestCase
 		// the badge counts only the live item and does not warn
 		// (badge() is a pure getter — it does not delete anything)
 		$this->assertSame(1, $trash->badge()['text']);
-		$this->assertSame('notice', $trash->badge()['theme']);
+		$this->assertSame('passive', $trash->badge()['theme']);
 		$this->assertFalse($trash->expiresSoon());
 		$rows = array_column($trash->panelItems(), null, 'path');
 		$this->assertFalse($rows['note']['expiresSoon']);
@@ -1017,7 +1021,7 @@ final class TrashTest extends TestCase
 		]);
 		$this->assertFalse($this->trash()->expiresSoon());
 		$this->assertFalse($this->trash()->panelItems()[0]['expiresSoon']);
-		$this->assertSame('notice', $this->trash()->badge()['theme']);
+		$this->assertSame('passive', $this->trash()->badge()['theme']);
 
 		// retention disabled: nothing ever expires
 		$this->kirby = $this->app([
