@@ -240,8 +240,10 @@ Releasing a new version: bump `version` in `composer.json` and date
 the CHANGELOG in one PR — merging it lets the release workflow create
 the matching tag and GitHub release automatically, with the notes taken
 from the CHANGELOG. `main` releases 1.x (marked as the latest release),
-`kirby-5` releases 0.x (pre-releases, never marked latest); a version
-bumped on the wrong branch stops the release.
+`kirby-5` releases 0.x (pre-releases, never marked latest). Semver
+pre-releases such as `1.1.0-rc.1` are published as pre-releases and
+never marked latest either; a version bumped on the wrong branch stops
+the release.
 
 ## License
 

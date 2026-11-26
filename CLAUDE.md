@@ -118,8 +118,9 @@ Bump `version` in composer.json AND date the CHANGELOG section in one
 PR; merging lets `.github/workflows/release.yml` create the matching
 tag and GitHub release (notes = that CHANGELOG section). Two lines:
 `main` releases 1.x (Kirby 6, marked latest), `kirby-5` releases 0.x
-(Kirby 5, pre-release, never latest); a version on the wrong branch
-fails the release. `.github/scripts/test-release-workflow.sh` exercises
+(Kirby 5, pre-release, never latest); semver pre-releases
+(`1.1.0-rc.1`) are pre-releases and never latest on either line; a
+version on the wrong branch fails the release. `.github/scripts/test-release-workflow.sh` exercises
 the workflow in CI. Packagist syncs via hook and SKIPS tags that don't
 match the version field. Never move a published tag.
 

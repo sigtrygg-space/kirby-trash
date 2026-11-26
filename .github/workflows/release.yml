@@ -110,18 +110,24 @@ jobs:
           VERSION: ${{ steps.composer.outputs.version }}
           BRANCH: ${{ github.ref_name }}
         run: |
-          # 0.x versions are published as pre-releases
-          case "$VERSION" in
-            0.*) prerelease="--prerelease" ;;
-            *)   prerelease="" ;;
+          # 0.x versions and semver pre-releases (1.1.0-rc.1) are
+          # published as pre-releases. Build metadata may contain
+          # hyphens too, so only the part before `+` decides
+          core="${VERSION%%+*}"
+          case "$core" in
+            0.* | *-*) prerelease="--prerelease" ;;
+            *)         prerelease="" ;;
           esac
 
-          # only main's line is "Latest": a Kirby 5 patch released after
-          # 1.0 must not take the badge from the current major
-          case "$BRANCH" in
-            main) latest="--latest" ;;
-            *)    latest="--latest=false" ;;
-          esac
+          # only stable releases of main's line are "Latest": neither a
+          # Kirby 5 patch released after 1.0 nor a release candidate
+          # may take the badge (and the README's download link) from
+          # the current stable version
+          if [ "$BRANCH" = main ] && [ -z "$prerelease" ]; then
+            latest="--latest"
+          else
+            latest="--latest=false"
+          fi
 
           gh release create "v$VERSION" \
             --target "$GITHUB_SHA" \

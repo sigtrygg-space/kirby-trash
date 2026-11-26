@@ -244,6 +244,25 @@ else
 	no "unexpected gh arguments for kirby-5 0.7.2: $args"
 fi
 
+# a release candidate must neither look stable nor take the Latest
+# badge (the README links the latest release for downloads)
+for version in 1.1.0-rc.1 1.2.3-alpha.1+build.5; do
+	args="$(run_create main "$version")"
+	if [[ "$args" == *"--latest=false"* ]] && [[ "$args" == *"--prerelease"* ]]; then
+		ok "main $version is a pre-release and never Latest"
+	else
+		no "unexpected gh arguments for main $version: $args"
+	fi
+done
+
+# build metadata may contain hyphens without making a pre-release
+args="$(run_create main 1.2.3+build-5)"
+if [[ "$args" == *"--latest "* || "$args" == *"--latest" ]] && [[ "$args" != *"--prerelease"* ]]; then
+	ok "main 1.2.3+build-5 is a stable Latest release"
+else
+	no "unexpected gh arguments for main 1.2.3+build-5: $args"
+fi
+
 # --------------------------------------------------- release notes
 echo "release notes"
 
