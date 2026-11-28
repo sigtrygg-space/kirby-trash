@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.2 (2026-11-28)
+
+- Restoring follows the parent page by its UUID again: a page whose
+  parent was renamed or moved after the deletion is restored below
+  the parent's current location. On Kirby 6 the UUID lookup failed
+  silently (Kirby 6 no longer accepts UUID strings in `Uuid::for()`)
+  and the restore fell back to the parent's old path: it failed with
+  "The original parent page … does not exist anymore", or restored
+  below whatever page had taken over that path in the meantime. The
+  Kirby 5 line (0.7.x) is not affected
+
 ## 1.0.1 (2026-11-26)
 
 - The "Time left" column marks only items that expire soon again. On

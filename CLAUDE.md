@@ -44,6 +44,13 @@ English (international Kirby community).
   at a template's root: they ship in the build and turn the component
   into a fragment. Table cells set `inheritAttrs: false` (k-table
   passes every cell `disabled` and an `input` listener).
+- **Never wrap Kirby API calls in `catch (Throwable)`.** Degrading
+  on bad data is right, but catch `Exception` (Kirby's exceptions):
+  a Throwable catch turns a changed core signature (`TypeError`) into
+  a silent fallback — 1.0.0/1.0.1 restored pages under stale parent
+  paths that way, with a green suite. Guard meta values by type
+  first instead. Existing Throwable catches wrap filesystem access
+  and the never-throw badge path only.
 - Kirby core code style in PHP: tabs, aligned arrays, Kirby's
   `key:`/`data:`/`fallback:` exception convention.
 
@@ -92,6 +99,10 @@ English (international Kirby community).
   over between the lines.
 - Deleted models: read UUIDs non-generatively; generate only for the
   surviving parent (`uuidOf($parent, generate: true)`).
+- `Uuid::for()` takes only models (`Identifiable`) in Kirby 6; UUID
+  strings (`page://…` from meta.json) go through
+  `Uuid::from($string, 'page')`, which returns null for other schemes
+  and when UUIDs are disabled. Kirby 5 has no `Uuid::from()`.
 - Since Kirby 5.6.4 (and in 6) every Panel route except views (dialogs, drawers,
   dropdowns, searches, request routes) requires the Panel's CSRF
   token, also for GETs. `Request::csrf()` reads the `X-CSRF` header or
