@@ -52,6 +52,11 @@ hooks, the Panel area with backend-defined dialogs, and a CLI command.
   path) must be side-effect-free, cheap, and must never throw. Watch
   for new code that mutates state or does per-request filesystem work
   there.
+- **No `catch (Throwable)` around Kirby API calls.** Degrading paths
+  catch `Exception` and type-guard meta values first; a Throwable
+  catch hid a Kirby 6 signature change (`Uuid::for()` with a string)
+  behind a silent fallback in 1.0.0/1.0.1. Flag new Throwable catches
+  outside filesystem access and the badge path.
 - **Corrupt `meta.json` must degrade, never crash.** Meta fields are
   user-editable files on disk: every new read of a meta value needs
   type guards like `metaTime()`'s `is_string()` check, and per-entry

@@ -3,6 +3,7 @@
 namespace SigtryggSpace\KirbyTrash;
 
 use Closure;
+use Exception;
 use Kirby\Cms\App;
 use Kirby\Cms\File;
 use Kirby\Cms\Page;
@@ -1592,12 +1593,19 @@ class Trash
 		}
 
 		$parent = null;
+		$uuid   = $meta['parentUuid'] ?? null;
 
-		if (empty($meta['parentUuid']) === false) {
+		// meta.json is user-editable: anything but a page UUID string
+		// falls back to the id lookup below (Uuid::from() returns null
+		// for other schemes and when UUIDs are disabled). Only Kirby's
+		// own exceptions are caught — a Throwable catch once hid a
+		// TypeError here (Kirby 6 dropped strings from Uuid::for()),
+		// and the restore silently ignored renamed or moved parents
+		if (is_string($uuid) === true && $uuid !== '') {
 			try {
-				$model = Uuid::for($meta['parentUuid'])->model();
+				$model  = Uuid::from($uuid, 'page')?->model();
 				$parent = $model instanceof Page ? $model : null;
-			} catch (Throwable) {
+			} catch (Exception) {
 				$parent = null;
 			}
 		}
