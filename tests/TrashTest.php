@@ -1151,6 +1151,90 @@ final class TrashTest extends TestCase
 		$this->assertSame('Alt text stays', $restored->alt()->value());
 	}
 
+	public function testRestoreFollowsARenamedParentByUuid(): void
+	{
+		$parent = $this->createPage('parent');
+		$this->createPage('child', ['text' => 'Hello'], $parent);
+
+		$this->fresh()->page('parent/child')->delete();
+		$this->fresh()->page('parent')->changeSlug('renamed');
+
+		$this->trash()->restore($this->trash()->items()[0]['trashId']);
+
+		$kirby = $this->fresh();
+		$this->assertNull($kirby->page('parent'));
+		$this->assertSame('Hello', $kirby->page('renamed/child')?->text()->value());
+	}
+
+	public function testMetaRecordsTheUuidsOfItemAndParent(): void
+	{
+		// uuidOf() swallows every error into null, so a broken UUID
+		// API would only show as missing values here
+		$parent = $this->createPage('parent');
+		$child  = $this->createPage('child', parent: $parent);
+		$file   = $this->createFile($parent, 'doc.pdf');
+
+		$pageUuid   = $child->uuid()->toString();
+		$fileUuid   = $file->uuid()->toString();
+		$parentUuid = $parent->uuid()->toString();
+
+		$this->fresh()->page('parent/child')->delete();
+		$this->fresh()->file('parent/doc.pdf')->delete();
+
+		$meta = [];
+		foreach ($this->trash()->items() as $item) {
+			$meta[$item['type']] = Data::read($this->trash()->root() . '/' . $item['trashId'] . '/meta.json', 'json');
+		}
+
+		$this->assertSame($pageUuid, $meta['page']['uuid']);
+		$this->assertSame($parentUuid, $meta['page']['parentUuid']);
+		$this->assertSame($fileUuid, $meta['file']['uuid']);
+		$this->assertSame($parentUuid, $meta['file']['parentUuid']);
+	}
+
+	public function testRestoreFollowsAMovedParentByUuid(): void
+	{
+		// Kirby only moves pages into parents whose blueprint
+		// lists the page's template in a pages section
+		$this->kirby = $this->app(props: [
+			'blueprints' => [
+				'pages/section' => [
+					'sections' => ['pages' => ['type' => 'pages', 'template' => 'default']],
+				],
+			],
+		]);
+
+		Page::create(['slug' => 'section', 'template' => 'section', 'content' => ['title' => 'Section']]);
+		$parent = $this->createPage('parent');
+		$this->createPage('child', ['text' => 'Hello'], $parent);
+
+		$this->fresh()->page('parent/child')->delete();
+		$kirby = $this->fresh();
+		$kirby->page('parent')->move($kirby->page('section'));
+
+		$this->trash()->restore($this->trash()->items()[0]['trashId']);
+
+		$this->assertSame('Hello', $this->fresh()->page('section/parent/child')?->text()->value());
+	}
+
+	public function testRestoreFallsBackToTheParentIdForBrokenParentUuids(): void
+	{
+		// meta.json is a user-editable file: a parentUuid that is no
+		// string, has an unknown scheme or no scheme at all must not
+		// break the restore, the parent id still resolves the parent
+		foreach ([['page://'], 'nonsense', 'foo://bar', 'page://does-not-exist'] as $i => $broken) {
+			$this->createPage('parent' . $i);
+			$this->createPage('child', parent: $this->fresh()->page('parent' . $i));
+			$this->fresh()->page('parent' . $i . '/child')->delete();
+
+			$item = $this->trash()->items()[0];
+			$this->writeMeta($item['trashId'], ['parentUuid' => $broken]);
+
+			$this->trash()->restore($item['trashId']);
+			$this->assertNotNull($this->fresh()->page('parent' . $i . '/child'), json_encode($broken));
+		}
+	}
+
 	public function testRestoreFailsWhenParentIsGone(): void
 	{
 		$parent = $this->createPage('parent');
@@ -1902,5 +1986,16 @@ final class TrashTest extends TestCase
 		}
 
 		$this->fail('trash item for ' . $pageId . ' not found');
+	}
+
+	/**
+	 * Overwrites fields of an item's meta.json, the way a hand edit
+	 * (or a corrupt write) would
+	 */
+	protected function writeMeta(string $trashId, array $fields): void
+	{
+		$file = $this->trash()->root() . '/' . $trashId . '/meta.json';
+		Data::write($file, [...Data::read($file, 'json'), ...$fields], 'json');
+		$this->trash()->flushIndex();
 	}
 }
